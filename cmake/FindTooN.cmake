@@ -1,5 +1,6 @@
 
 find_path(TOON_INCLUDE_PATH TooN/TooN.h
+  ~/code/ext/TooN/install/include
 	~/usr/include
 	~/usr/.local/include
 	~/.local/include
