@@ -72,7 +72,7 @@ set(kfusion_cuda_srcs
 	thirdparty/kfusion.h
 	)
 	
-    cuda_add_library(${appname}-cuda    STATIC  ${kfusion_cuda_srcs} OPTIONS -O3-std=c++11 )
+    cuda_add_library(${appname}-cuda    STATIC  ${kfusion_cuda_srcs} OPTIONS -O3 -std=c++11 )
 	target_link_libraries(${appname}-cuda   ${common_libraries})	
     add_version(${appname} cuda    "" "")
 
