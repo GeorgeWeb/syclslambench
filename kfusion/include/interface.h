@@ -593,12 +593,16 @@ public:
 		cameraActive = false;
 	}
 	bool readNextDepthFrame(float * depthMap) {
+    assert(0); // PGK: quieten GCC regarding the lack of a return statement
 	}
 	bool readNextDepthFrame(uchar3* raw_rgb, unsigned short int * depthMap) {
+    assert(0); // PGK: ""
 	}
 	float4 getK() {
+    assert(0); // PGK: ""
 	}
 	uint2 getinputSize() {
+    assert(0); // PGK: ""
 	}
 	void restart() {
 	}

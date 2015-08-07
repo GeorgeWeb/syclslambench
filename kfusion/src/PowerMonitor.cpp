@@ -8,6 +8,7 @@
  */
 
 #include <stdio.h>
+#include <assert.h> // PGK: needed for the use of assert added below
 #include <perfstats.h>
 #include "PowerMonitor.h"
 
@@ -90,7 +91,7 @@ float PowerMonitor::getPower(Sensor sensor) {
 			return (power);
 		}
 	}
-
+  assert(0); // PGK: GCC warning: "control may reach end of non-void function"
 }
 
 int PowerMonitor::enableSensor(Sensor sensor) {
