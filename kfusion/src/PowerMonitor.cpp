@@ -102,13 +102,13 @@ int PowerMonitor::enableSensor(Sensor sensor) {
 		sprintf(enableFile, "/sys/bus/i2c/drivers/INA231/%d-00%d/enable", dn,
 				sensor);
 
-		if (tmp = fopen(enableFile, "a")) {
+		if ((tmp = fopen(enableFile, "a"))) {
 			fprintf(tmp, "1\n");
 			fclose(tmp);
 
 			sprintf(enableFile, "/sys/bus/i2c/drivers/INA231/%d-00%d/sensor_W",
 					dn, sensor);
-			if (tmp = fopen(enableFile, "r")) {
+			if ((tmp = fopen(enableFile, "r"))) {
 				switch (sensor) {
 				case SENSOR_A7:
 					powerA7 = tmp;
