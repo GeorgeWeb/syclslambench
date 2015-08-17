@@ -11,7 +11,7 @@
 #define _KERNELS_
 
 #include <cstdlib>
-#include <commons.h>
+#include <sycl/commons.h>
 
 ////////////////////////// COMPUTATION KERNELS PROTOTYPES //////////////////////
 
