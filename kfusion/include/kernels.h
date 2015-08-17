@@ -10,6 +10,11 @@
 #ifndef _KERNELS_
 #define _KERNELS_
 
+#define SYCL
+#ifdef SYCL
+#include <sycl/kernels.h> // myfloatN.x -> myfloatN.x() many times
+#else
+
 #include <cstdlib>
 #include <commons.h>
 
@@ -201,4 +206,5 @@ public:
 
 void synchroniseDevices(); // Synchronise CPU and GPU
 
+#endif // SYCL
 #endif
