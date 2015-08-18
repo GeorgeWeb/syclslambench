@@ -7,12 +7,8 @@
 
  */
 
-#ifndef INTERFACE_H_
-#define INTERFACE_H_
-
-#ifdef SYCL
-#include <sycl/interface.h> // myfloatN.x -> myfloatN.x() many times
-#else
+#ifndef SYCL_INTERFACE_H_
+#define SYCL_INTERFACE_H_
 
 #ifdef __APPLE__
     #include <mach/clock.h>
@@ -146,10 +142,10 @@ public:
 	inline bool readNextDepthFrame(uchar3*, unsigned short int * depthMap) {
 
 		float* FloatdepthMap = (float*) malloc(
-				_size.x * _size.y * sizeof(float));
+				_size.x() * _size.y() * sizeof(float));
 		bool res = readNextDepthFrame(FloatdepthMap);
 
-		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
+		for (unsigned int i = 0; i < _size.x() * _size.y(); i++) {
 			depthMap[i] = FloatdepthMap[i] * 1000.0f;
 		}
 		free(FloatdepthMap);
@@ -234,11 +230,11 @@ public:
 
 		get_next_frame();
 #ifdef LIGHT_RAW // This LightRaw mode is used to get smaller raw files
-		unsigned int size_of_frame = (sizeof(unsigned int) * 2 + _size.x * _size.y * sizeof(unsigned short int) );
+		unsigned int size_of_frame = (sizeof(unsigned int) * 2 + _size.x() * _size.y() * sizeof(unsigned short int) );
 #else
 		unsigned int size_of_frame = (sizeof(unsigned int) * 4
-				+ _size.x * _size.y * sizeof(unsigned short int)
-				+ _size.x * _size.y * sizeof(uchar3));
+				+ _size.x() * _size.y() * sizeof(unsigned short int)
+				+ _size.x() * _size.y() * sizeof(uchar3));
 #endif
 		fseek(_pFile, size_of_frame * _frame, SEEK_SET);
 
@@ -259,7 +255,7 @@ public:
 #ifdef LIGHT_RAW // This LightRaw mode is used to get smaller raw files
 
 		if (raw_rgb) {
-			raw_rgb[0].x = 0;
+			raw_rgb[0].x() = 0;
 		} else {
 		}
 
@@ -296,10 +292,10 @@ public:
 	inline bool readNextDepthFrame(float * depthMap) {
 
 		unsigned short int* UintdepthMap = (unsigned short int*) malloc(
-				_size.x * _size.y * sizeof(unsigned short int));
+				_size.x() * _size.y() * sizeof(unsigned short int));
 		bool res = readNextDepthFrame(NULL, UintdepthMap);
 
-		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
+		for (unsigned int i = 0; i < _size.x() * _size.y(); i++) {
 			depthMap[i] = (float) UintdepthMap[i] / 1000.0f;
 		}
 		free(UintdepthMap);
@@ -478,17 +474,17 @@ public:
 		openni::VideoMode depthMode = depth.getVideoMode();
 		openni::VideoMode colorMode = rgb.getVideoMode();
 
-		_size.x = depthMode.getResolutionX();
-		_size.y = depthMode.getResolutionY();
+		_size.x() = depthMode.getResolutionX();
+		_size.y() = depthMode.getResolutionY();
 
-		if (colorMode.getResolutionX() != _size.x || colorMode.getResolutionY() != _size.y) {
+		if (colorMode.getResolutionX() != _size.x() || colorMode.getResolutionY() != _size.y()) {
 			std::cout << "Incorrect rgb resolution: " << colorMode.getResolutionX() << " " << colorMode.getResolutionY() << std::endl;
 			//exit(3);
 			return;
 		}
 
-		depthImage = (uint16_t*) malloc(_size.x * _size.y * sizeof(uint16_t));
-		rgbImage = (uchar3*) malloc(_size.x * _size.y * sizeof(uchar3));
+		depthImage = (uint16_t*) malloc(_size.x() * _size.y() * sizeof(uint16_t));
+		rgbImage = (uchar3*) malloc(_size.x() * _size.y() * sizeof(uchar3));
 
 		rgb.setMirroringEnabled(false);
 		depth.setMirroringEnabled(false);
@@ -548,10 +544,10 @@ public:
 		}
 
 		if (raw_rgb) {
-			memcpy(raw_rgb,rgbImage,_size.x * _size.y*sizeof(uchar3));
+			memcpy(raw_rgb,rgbImage,_size.x() * _size.y()*sizeof(uchar3));
 		}
 		if (depthMap) {
-			memcpy(depthMap,depthImage,_size.x * _size.y*sizeof(uint16_t));
+			memcpy(depthMap,depthImage,_size.x() * _size.y()*sizeof(uint16_t));
 		}
 
 		get_next_frame ();
@@ -568,10 +564,10 @@ public:
 
 	inline bool readNextDepthFrame(float * depthMap) {
 
-		unsigned short int* UintdepthMap = (unsigned short int*) malloc(_size.x * _size.y * sizeof(unsigned short int));
+		unsigned short int* UintdepthMap = (unsigned short int*) malloc(_size.x() * _size.y() * sizeof(unsigned short int));
 		bool res = readNextDepthFrame(NULL,UintdepthMap);
 
-		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
+		for (unsigned int i = 0; i < _size.x() * _size.y(); i++) {
 			depthMap[i] = (float) UintdepthMap[i] / 1000.0f;
 		}
 		free(UintdepthMap);
@@ -617,5 +613,4 @@ public:
 };
 #endif /* DO_OPENNI*/
 
-#endif // SYCL
-#endif /* INTERFACE_H_ */
+#endif /* SYCL_INTERFACE_H_ */
