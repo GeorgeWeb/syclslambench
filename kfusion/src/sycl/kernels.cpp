@@ -36,6 +36,7 @@ float                *reduceOutputBuffer       = NULL;
 // reduction parameters
 static const size_t size_of_group    = 64;
 static const size_t number_of_groups = 8;
+const float inv_32766 = 0.00003051944088f;
 
 void Kfusion::languageSpecificConstructor() {
 
@@ -203,19 +204,11 @@ static void k(item<2> ix, T *out, const T *in, const T *gaussian,
 
 };
 
-template <typename F3>
-inline F3 myrotate(/*const*/ Matrix4 M, const F3 v) {
-	return F3{my_dot(F3{M.data[0].x(), M.data[0].y(), M.data[0].z()}, v),
-            my_dot(F3{M.data[1].x(), M.data[1].y(), M.data[1].z()}, v),
-            my_dot(F3{M.data[2].x(), M.data[2].y(), M.data[2].z()}, v)};
-}
-
-template <typename F3>
-inline F3 Mat4TimeFloat3(/*const*/ Matrix4 M, const F3 v) {
-	return
-  F3{cl::sycl::dot(F3{M.data[0].x(), M.data[0].y(), M.data[0].z()}, v) + M.data[0].w(),
-     cl::sycl::dot(F3{M.data[1].x(), M.data[1].y(), M.data[1].z()}, v) + M.data[1].w(),
-     cl::sycl::dot(F3{M.data[2].x(), M.data[2].y(), M.data[2].z()}, v) + M.data[2].w()};
+// Remove once param #1 is const: operator*(Matrix4 &, const float3 &) commons.h
+inline float3 Mat4TimeFloat3(/*const*/ Matrix4 M, const float3 v) {
+	return float3{dot(make_float3(M.data[0]), v) + M.data[0].w(),
+                dot(make_float3(M.data[1]), v) + M.data[1].w(),
+                dot(make_float3(M.data[2]), v) + M.data[2].w()};
 }
 
 template <typename T>
@@ -237,7 +230,7 @@ inline float2 getVolume(/*const*/ Volume<T> v, /*const*/ uint3 pos) {
   /*const*/ short2 d = v.data[pos.x() +   // Making d a ref fixes it.
                               pos.y() * v.size.x() +
                               pos.z() * v.size.x() * v.size.y()];
-	return float2{d.x() * 0.00003051944088f, d.y()}; //  / 32766.0f
+	return float2{d.x() * inv_32766, d.y()};
 }
 
 struct depth2vertexKernel {
@@ -253,8 +246,8 @@ static void k(item<2> ix, T *vertex, const U *depth, const Matrix4 invK)
   float elem = depth[pixel.x() + ix.get_range()[0] * pixel.y()];
   if (elem > 0) {
     float3 tmp3{pixel.x(), pixel.y(), 1.f};
-//          res = elem * myrotate(invK, tmp3); // SYCL needs this (*) operator
-    float3 rot = myrotate(invK, tmp3);
+//          res = elem * rotate(invK, tmp3); // SYCL needs this (*) operator
+    float3 rot = rotate(invK, tmp3);
     res.x() = elem * rot.x();
     res.y() = elem * rot.y();
     res.z() = elem * rot.z();
@@ -435,7 +428,7 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
 
   const float3 diff = refVertex[refPixel.x() + outputSize.x() * refPixel.y()] -
                       projectedVertex;
-  const float3 projectedNormal = myrotate(Ttrack, inNormalPixel);
+  const float3 projectedNormal = rotate(Ttrack, inNormalPixel);
 
   if (length(diff) > dist_threshold) {
     row.result = -4;
@@ -730,25 +723,22 @@ static void k(item<2> ix, T *render, U *v_data, const uint3 v_size,
 bool Kfusion::preprocessing(const uint16_t *inputDepth, /*const*/ uint2 inSize)
 {
 	uint2 outSize = computationSize;
-	const uint inSize_x  = inSize.x(); const uint inSize_y = inSize.y();
-	const uint outSize_x = computationSize.x();
-  const uint outSize_y = computationSize.y();
 
 	// Check for unsupported conditions
-	if ((inSize_x < outSize_x) || (inSize_y < outSize_y)) {
+	if ((inSize.x() < outSize.x()) || (inSize.y() < outSize.y())) {
 		std::cerr << "Invalid ratio." << std::endl;
 		exit(1);
 	}
-	if ((inSize_x % outSize_x != 0) || (inSize_y % outSize_y != 0)) {
+	if ((inSize.x() % outSize.x() != 0) || (inSize.y() % outSize.y() != 0)) {
 		std::cerr << "Invalid ratio." << std::endl;
 		exit(1);
 	}
-	if ((inSize_x / outSize_x != inSize_y / outSize_y)) {
+	if ((inSize.x() / outSize.x() != inSize.y() / outSize.y())) {
 		std::cerr << "Invalid ratio." << std::endl;
 		exit(1);
 	}
 
-	int ratio = inSize_x / outSize_x;
+	int ratio = inSize.x() / outSize.x();
 
   const auto r = range<2>{outSize.x(),outSize.y()};
 
@@ -762,9 +752,9 @@ bool Kfusion::preprocessing(const uint16_t *inputDepth, /*const*/ uint2 inSize)
 	return true;
 }
 
-bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate,
-		uint frame) {
-
+bool Kfusion::tracking(float4 k, float icp_threshold,
+                       const uint tracking_rate, const uint frame)
+{
 	if (frame % tracking_rate != 0)
 		return false;
 
@@ -862,20 +852,18 @@ inline float interp(/*const*/ float3 pos, /*const*/ Volume<T> v) {
   /*const*/ int3 upper = min(base + int3{1,1,1},
                              int3{v.size.x()-1,v.size.y()-1,v.size.z()-1});
 	return (((vs(uint3{lower.x(), lower.y(), lower.z()}, v) * (1 - factor.x())
-			+ vs(uint3{upper.x(), lower.y(), lower.z()}, v) * factor.x())
-			* (1 - factor.y())
-			+ (vs(uint3{lower.x(), upper.y(), lower.z()}, v) * (1 - factor.x())
-					+ vs(uint3{upper.x(), upper.y(), lower.z()}, v) * factor.x())
-					* factor.y()) * (1 - factor.z())
-			+ ((vs(uint3{lower.x(), lower.y(), upper.z()}, v) * (1 - factor.x())
-					+ vs(uint3{upper.x(), lower.y(), upper.z()}, v) * factor.x())
-					* (1 - factor.y())
-					+ (vs(uint3{lower.x(), upper.y(), upper.z()}, v)
-							* (1 - factor.x())
-							+ vs(uint3{upper.x(), upper.y(), upper.z()}, v)
-									* factor.x()) * factor.y()) * factor.z())
-			* 0.00003051944088f;
-  return 0;
+      + vs(uint3{upper.x(), lower.y(), lower.z()}, v) * factor.x())
+      * (1 - factor.y())
+      + (vs(uint3{lower.x(), upper.y(), lower.z()}, v) * (1 - factor.x())
+          + vs(uint3{upper.x(), upper.y(), lower.z()}, v) * factor.x())
+          * factor.y()) * (1 - factor.z())
+      + ((vs(uint3{lower.x(), lower.y(), upper.z()}, v) * (1 - factor.x())
+          + vs(uint3{upper.x(), lower.y(), upper.z()}, v) * factor.x())
+          * (1 - factor.y())
+          + (vs(uint3{lower.x(), upper.y(), upper.z()}, v)
+              * (1 - factor.x())
+              + vs(uint3{upper.x(), upper.y(), upper.z()}, v)
+                  * factor.x()) * factor.y()) * factor.z()) * inv_32766;
 }
 
 template <typename T>
@@ -984,7 +972,7 @@ inline float3 grad(float3 pos, /*const*/ Volume<T> v) {
 
 	return gradient * float3{v.dim.x() / v.size.x(),
                            v.dim.y() / v.size.y(),
-                           v.dim.z() / v.size.z()} * (0.5f * 0.00003051944088f);
+                           v.dim.z() / v.size.z()} * (0.5f * inv_32766);
 }
 
 template <typename T>
@@ -993,7 +981,7 @@ float4 raycast(/*const*/ Volume<T> v, /*const*/ uint2 pos, const Matrix4 view,
                const float largestep)
 {
   const float3 origin = get_translation(view);
-  /*const*/ float3 direction = myrotate(view, float3{pos.x(), pos.y(), 1.f});
+  /*const*/ float3 direction = rotate(view, float3{pos.x(), pos.y(), 1.f});
 
 	// intersect ray with a box
 	//
@@ -1061,7 +1049,8 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 	return doRaycast;
 }
 
-bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame)
+bool Kfusion::integration(float4 k, const uint integration_rate,
+                          const float mu, const uint frame)
 {
 	bool doIntegrate = checkPoseKernel(pose, oldPose, reduceOutputBuffer,
 			computationSize, track_threshold);
@@ -1070,14 +1059,14 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame)
     range<2> globalWorksize{volumeResolution.x(), volumeResolution.y()};
 		const Matrix4 invTrack = inverse(pose);
 		const Matrix4 K = getCameraMatrix(k);
-		const float3 delta = myrotate(invTrack,
+		const float3 delta = rotate(invTrack,
 				float3{0, 0, volumeDimensions.z() / volumeResolution.z()});
 
     // The SYCL lambda for integrateKernel demonstrates pre-DAGR verbosity
     dagr::run<integrateKernel,0>(q, globalWorksize,
       *ocl_volume_data, volumeResolution, volumeDimensions,
       dagr::ro(*ocl_FloatDepth),
-      computationSize, invTrack, K, mu, maxweight, delta, myrotate(K, delta));
+      computationSize, invTrack, K, mu, maxweight, delta, rotate(K, delta));
 
 		doIntegrate = true;
 	} else {
