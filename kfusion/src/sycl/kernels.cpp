@@ -9,7 +9,7 @@
 #include <kernels.h>
 
 // input once
-float * gaussian;
+float *gaussian;
 
 // inter-frame
 Volume<short2 *> volume;
@@ -83,9 +83,10 @@ void Kfusion::languageSpecificConstructor() {
 
 Kfusion::~Kfusion() {
 
-	if (reduceOutputBuffer)
-		free(reduceOutputBuffer);
-	reduceOutputBuffer = NULL;
+	if (reduceOutputBuffer) {
+    free(reduceOutputBuffer);
+    reduceOutputBuffer = NULL;
+  }
 
 	if (ocl_FloatDepth) {
 		delete ocl_FloatDepth;
