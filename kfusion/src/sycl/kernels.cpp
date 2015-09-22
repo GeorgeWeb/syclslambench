@@ -1,8 +1,6 @@
 /*
 
- Copyright (c) 2014 University of Edinburgh, Imperial College, University of Manchester.
- Developed in the PAMELA project, EPSRC Programme Grant EP/K008730/1
-
+ Copyright (c) 2015 Paul Keir, University of the West of Scotland.
  This code is licensed under the MIT License.
 
  */
