@@ -168,6 +168,9 @@ template <typename T>
 static void k(item<2> ix, T *out, const T *in, const T *gaussian,
               const float e_d, const int r)
 {
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::clamp;
+
   /*const*/ uint2 pos{ix[0],ix[1]};
   /*const*/ uint2 size{ix.get_range()[0], ix.get_range()[1]};
 
@@ -201,16 +204,19 @@ static void k(item<2> ix, T *out, const T *in, const T *gaussian,
     }
   } 
   out[pos.x() + size.x() * pos.y()] = t / sum;
+#endif // __CL_SYCL_DEVICE__
 }
 
 };
 
+#ifdef __CL_SYCL_DEVICE__
 // Remove once param #1 is const: operator*(Matrix4 &, const float3 &) commons.h
 inline float3 Mat4TimeFloat3(/*const*/ Matrix4 M, const float3 v) {
 	return float3{dot(make_float3(M.data[0]), v) + M.data[0].w(),
                 dot(make_float3(M.data[1]), v) + M.data[1].w(),
                 dot(make_float3(M.data[2]), v) + M.data[2].w()};
 }
+#endif // __CL_SYCL_DEVICE__
 
 template <typename T>
 inline void setVolume(Volume<T> v, uint3 pos, float2 d) {
@@ -268,6 +274,9 @@ struct vertex2normalKernel {
 template <typename T>
 static void k(item<2> ix, T *normal, const T *verte_)
 {
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::normalize;
+
   using const_float3_as1_t = const __attribute__((address_space(1))) float3&;
   static_assert(std::is_same<decltype(verte_[0]),const_float3_as1_t>::value,"");
 
@@ -296,6 +305,7 @@ static void k(item<2> ix, T *normal, const T *verte_)
   const float3 dxv = right - left;
   const float3 dyv = down  - up;
   normal[pixel.x() + ix.get_range()[0] * pixel.y()] = normalize(cross(dyv,dxv));
+#endif
 }
 
 }; // struct
@@ -396,6 +406,7 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
               const Matrix4 Ttrack,       const Matrix4 view,
               const float dist_threshold, const float normal_threshold)
 {
+#ifdef __CL_SYCL_DEVICE__
   const float3 *inNormal  = inNorma_;  // See const_vec_ptr.cpp
   const float3 *inVertex  = inVerte_;  // ""
   const float3 *refNormal = refNorma_; // ""
@@ -445,6 +456,7 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
   *((float3 *)(row.J + 0)) = referenceNormal; // a la vstore3
   *((float3 *)(row.J + 3)) = cross(projectedVertex, referenceNormal);
   // row.J + 0 -> row.J[0:2]          row.J + 3 ->  row.J[3:5]
+#endif // __CL_SYCL_DEVICE__
 }
 }; // struct
 
@@ -503,6 +515,9 @@ static void k(I ix, T *v_data, const uint3 v_size, const float3 v_dim,
               const float maxweight, const float3 delta,
               const float3 cameraDelta)
 {
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::clamp;
+
   Volume<T *> vol;
   vol.data = &v_data[0]; vol.size = v_size; vol.dim = v_dim;
 
@@ -543,6 +558,7 @@ static void k(I ix, T *v_data, const uint3 v_size, const float3 v_dim,
       setVolume(vol,pix,data);
     }
   }
+#endif // __CL_SYCL_DEVICE__
 }
 }; // struct 
 
@@ -557,6 +573,9 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
               const float nearPlane, const float farPlane,
               const float step, const float largestep)
 {
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::length;
+
   /*const*/ Volume<U *> volume;//{v_size,v_dim,v_data};
   volume.data = &v_data[0]; volume.size = v_size; volume.dim = v_dim;
   uint2 pos{ix[0],ix[1]};
@@ -573,7 +592,7 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
   if (hit.w() > 0.0f) {
     pos3D[pos.x() + sizex * pos.y()] = test;
     float3 surfNorm = grad(test,volume);
-    if (cl::sycl::length(surfNorm) == 0)
+    if (length(surfNorm) == 0)
       normal[pos.x() + sizex * pos.y()] = invalid3;
     else
       normal[pos.x() + sizex * pos.y()] = cl::sycl::normalize(surfNorm);
@@ -582,7 +601,7 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
     pos3D [pos.x() + sizex * pos.y()] = float3{0,0,0};
     normal[pos.x() + sizex * pos.y()] = invalid3;
   }
-
+#endif // __CL_SYCL_DEVICE__
 }
 
 }; // struct
@@ -694,6 +713,12 @@ static void k(item<2> ix, T *render, U *v_data, const uint3 v_size,
               const float step, const float largestep,
               const float3 light, const float3 ambient)
 {
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::dot;
+  using cl::sycl::clamp;
+  using cl::sycl::length;
+  using cl::sycl::normalize;
+
 	/*const*/ Volume<U *> v;//{v_size,v_dim,v_data};
   v.data = v_data; v.size = v_size; v.dim = v_dim;
 
@@ -717,6 +742,7 @@ static void k(item<2> ix, T *render, U *v_data, const uint3 v_size,
 	} else {
       render[pos.x() + sizex * pos.y()] = uchar4{0,0,0,0};
 	}
+#endif // __CL_SYCL_DEVICE__
 }
 
 }; // struct

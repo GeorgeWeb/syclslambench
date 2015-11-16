@@ -20,9 +20,12 @@ using cl::sycl::uint2;     using cl::sycl::uint3;
 using cl::sycl::short2;
 
 using cl::sycl::uchar3;    using cl::sycl::uchar4;
-using cl::sycl::clamp;     using cl::sycl::min;    using cl::sycl::max;
+using cl::sycl::min;    using cl::sycl::max;
+/*
+using cl::sycl::clamp;
 using cl::sycl::normalize; using cl::sycl::cross;  using cl::sycl::length;
 using cl::sycl::dot;
+*/
 
 inline float2 make_float2(float x, float y         )  { return float2{x,y}; }
 inline float3 make_float3(float x, float y, float z)  { return float3{x,y,z}; }
@@ -72,7 +75,10 @@ inline float3 fmaxf(float3 a, float3 b) {
 	return float3{fmaxf(a.x(), b.x()), fmaxf(a.y(), b.y()), fmaxf(a.z(), b.z())};
 }
 inline float  min(float3 a) { return fminf(a.x(), fminf(a.y(), a.z())); }
-inline uint   max(uint3 a)  { return max(a.x(), max(a.y(), a.z())); }
+inline uint   max(uint3 a)  {
+  return max(static_cast<uint>(a.x()),
+             max(static_cast<uint>(a.y()), static_cast<uint>(a.z())));
+}
 inline float3 operator*(float b, float3 a) {
 	return float3{b*a.x(), b*a.y(), b*a.z()};
 }
