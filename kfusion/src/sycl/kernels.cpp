@@ -605,6 +605,7 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
 //      printf("2 normalize: %g %g %g\n", static_cast<float>(surfNorm.x()),
 //                                  static_cast<float>(surfNorm.y()),
 //                                  static_cast<float>(surfNorm.z()));
+#if 0
       union ifloat {
         float f;
         int i;
@@ -617,7 +618,7 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
       toxic2.i = -1138644937;
       toxic3.i = -1187829575;
       float3 toxicf3{toxic1.f,toxic2.f,toxic3.f};
-      normal[pos.x() + sizex * pos.y()] = normalize(toxicf3);
+      //normal[pos.x() + sizex * pos.y()] = normalize(toxicf3);
       {
       ifloat i1, i2, i3;
       i1.f = static_cast<float>(toxicf3.x());
@@ -632,7 +633,14 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
       i3.f = static_cast<float>(surfNorm.z());
       printf("2:: %d %d %d\n", i1.i, i2.i, i3.i);
       }
-      //normal[pos.x() + sizex * pos.y()] = normalize(surfNorm);
+#endif
+      auto nn = normalize(surfNorm);
+      nn.x() = 0;
+      nn.y() = 0;  // frame 176 crash!?
+      nn.z() = 0; // frame 88 crash!?
+      // no crash with all three
+      normal[pos.x() + sizex * pos.y()] = nn;//normalize(surfNorm);
+      // normal[pos.x() + sizex * pos.y()] = invalid3;
     }
   }
   else {
