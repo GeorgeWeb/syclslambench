@@ -575,6 +575,7 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
 {
 #ifdef __CL_SYCL_DEVICE__
   using cl::sycl::length;
+  using cl::sycl::normalize;
 
   /*const*/ Volume<U *> volume;//{v_size,v_dim,v_data};
   volume.data = &v_data[0]; volume.size = v_size; volume.dim = v_dim;
@@ -595,7 +596,44 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
     if (length(surfNorm) == 0)
       normal[pos.x() + sizex * pos.y()] = invalid3;
     else
-      normal[pos.x() + sizex * pos.y()] = cl::sycl::normalize(surfNorm);
+    {
+      //float3 f3q{-5.19386e-05 -0.00797108 -3.70805e-05};
+      //printf("1 normalize: %g %g %g\n", static_cast<float>(f3q.x()),
+      //                            static_cast<float>(f3q.y()),
+      //                            static_cast<float>(f3q.z()));
+      //normalize(f3q);
+//      printf("2 normalize: %g %g %g\n", static_cast<float>(surfNorm.x()),
+//                                  static_cast<float>(surfNorm.y()),
+//                                  static_cast<float>(surfNorm.z()));
+      union ifloat {
+        float f;
+        int i;
+      };
+      ifloat toxic1, toxic2, toxic3;
+//      toxic1.i = -1194008513;
+//      toxic2.i = -1142547211;
+//      toxic3.i =  951097686;
+      toxic1.i = -1193008400;
+      toxic2.i = -1138644937;
+      toxic3.i = -1187829575;
+      float3 toxicf3{toxic1.f,toxic2.f,toxic3.f};
+      normal[pos.x() + sizex * pos.y()] = normalize(toxicf3);
+      {
+      ifloat i1, i2, i3;
+      i1.f = static_cast<float>(toxicf3.x());
+      i2.f = static_cast<float>(toxicf3.y());
+      i3.f = static_cast<float>(toxicf3.z());
+      printf("1:: %d %d %d\n", i1.i, i2.i, i3.i);
+      }
+      {
+      ifloat i1, i2, i3;
+      i1.f = static_cast<float>(surfNorm.x());
+      i2.f = static_cast<float>(surfNorm.y());
+      i3.f = static_cast<float>(surfNorm.z());
+      printf("2:: %d %d %d\n", i1.i, i2.i, i3.i);
+      }
+      //normal[pos.x() + sizex * pos.y()] = normalize(surfNorm);
+    }
   }
   else {
     pos3D [pos.x() + sizex * pos.y()] = float3{0,0,0};
