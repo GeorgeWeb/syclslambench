@@ -305,7 +305,7 @@ static void k(item<2> ix, T *normal, const T *verte_)
   const float3 dxv = right - left;
   const float3 dyv = down  - up;
   normal[pixel.x() + ix.get_range()[0] * pixel.y()] = normalize(cross(dyv,dxv));
-#endif
+#endif // __CL_SYCL_DEVICE__
 }
 
 }; // struct
@@ -597,50 +597,62 @@ static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
       normal[pos.x() + sizex * pos.y()] = invalid3;
     else
     {
-      //float3 f3q{-5.19386e-05 -0.00797108 -3.70805e-05};
-      //printf("1 normalize: %g %g %g\n", static_cast<float>(f3q.x()),
-      //                            static_cast<float>(f3q.y()),
-      //                            static_cast<float>(f3q.z()));
-      //normalize(f3q);
-//      printf("2 normalize: %g %g %g\n", static_cast<float>(surfNorm.x()),
-//                                  static_cast<float>(surfNorm.y()),
-//                                  static_cast<float>(surfNorm.z()));
-#if 0
-      union ifloat {
-        float f;
-        int i;
-      };
-      ifloat toxic1, toxic2, toxic3;
-//      toxic1.i = -1194008513;
-//      toxic2.i = -1142547211;
-//      toxic3.i =  951097686;
-      toxic1.i = -1193008400;
-      toxic2.i = -1138644937;
-      toxic3.i = -1187829575;
-      float3 toxicf3{toxic1.f,toxic2.f,toxic3.f};
-      //normal[pos.x() + sizex * pos.y()] = normalize(toxicf3);
-      {
-      ifloat i1, i2, i3;
-      i1.f = static_cast<float>(toxicf3.x());
-      i2.f = static_cast<float>(toxicf3.y());
-      i3.f = static_cast<float>(toxicf3.z());
-      printf("1:: %d %d %d\n", i1.i, i2.i, i3.i);
-      }
-      {
-      ifloat i1, i2, i3;
-      i1.f = static_cast<float>(surfNorm.x());
-      i2.f = static_cast<float>(surfNorm.y());
-      i3.f = static_cast<float>(surfNorm.z());
-      printf("2:: %d %d %d\n", i1.i, i2.i, i3.i);
-      }
-#endif
-      auto nn = normalize(surfNorm);
-      nn.x() = 0;
-      nn.y() = 0;  // frame 176 crash!?
-      nn.z() = 0; // frame 88 crash!?
-      // no crash with all three
-      normal[pos.x() + sizex * pos.y()] = nn;//normalize(surfNorm);
-      // normal[pos.x() + sizex * pos.y()] = invalid3;
+      normal[pos.x() + sizex * pos.y()] = normalize(surfNorm);
+    }
+  }
+  else {
+    pos3D [pos.x() + sizex * pos.y()] = float3{0,0,0};
+    normal[pos.x() + sizex * pos.y()] = invalid3;
+  }
+#endif // __CL_SYCL_DEVICE__
+}
+
+}; // struct
+
+struct raycastKernel2 {
+
+// Although T is instantiated float, pos3D and normal are targeting float3 data
+// Actually, T is instantiated as float3. This is due to the declaration of
+// ocl_vertex, which was given a float3 type, rather than the uptyped OpenCL buf
+template <typename T, typename U>
+static void k(item<2> ix, T *pos3D, T *normal, U *v_data,
+              const uint3 v_size, const float3 v_dim, const Matrix4 view,
+              const float nearPlane, const float farPlane,
+              const float step, const float largestep)
+{
+#ifdef __CL_SYCL_DEVICE__
+  using cl::sycl::length;
+  using cl::sycl::normalize;
+
+  /*const*/ Volume<U *> volume;//{v_size,v_dim,v_data};
+  volume.data = &v_data[0]; volume.size = v_size; volume.dim = v_dim;
+  uint2 pos{ix[0],ix[1]};
+  const int sizex = ix.get_range()[0];
+
+  /*const*/ float4 hit =
+    raycast(volume, pos, view, nearPlane, farPlane, step, largestep);
+  const float3 test{hit.x(),hit.y(),hit.z()}; // as_float3(hit);
+
+  // The C++ version just sets the normal's x value to INVALID. This is a
+  // better approach - also used by the OpenCL version.
+  const float3 invalid3{INVALID,INVALID,INVALID};
+
+  if (hit.w() > 0.0f) {
+    pos3D[pos.x() + sizex * pos.y()] = test;
+    float3 surfNorm = grad(test,volume);
+    if (length(surfNorm) == 0)
+      normal[pos.x() + sizex * pos.y()] = invalid3;
+    else
+    {
+      uint p1 = pos.x();
+      uint p2 = pos.y();
+      uint ix = pos.x() + sizex * pos.y();
+      float len = length(surfNorm);
+//      printf("%d %d %d %d - %g\n", p1, p2, sizex, ix, len);
+
+//      printf("%d\n", ix);
+      normal[pos.x() + sizex * pos.y()] = normalize(surfNorm);
+      // normalize(surfNorm);
     }
   }
   else {
@@ -962,6 +974,21 @@ inline float3 grad(float3 pos, /*const*/ Volume<T> v) {
 	/*const*/ int3 upper_upper = min(base + int3{2,2,2}, vsm1);
 	/*const*/ int3 lower       = lower_upper;
 	/*const*/ int3 upper       = upper_lower;
+  auto vs = [](uint3 pos, Volume<T> v) -> float {
+//    v.data = &v_data[0]; v.size = v_size; v.dim = v_dim;
+// 256 * 256 * 256
+    auto ix =     pos.x() +
+                  pos.y() * v.size.x() +
+                  pos.z() * v.size.x() * v.size.y();
+    auto lim = v.size.x() * v.size.y() * 256;
+    ix =  ix < lim ? ix : (lim-1); 
+    return v.data[ix].x();
+//    if (ix < v.size.x()*v.size.y()*v.size.z())
+//    return v.data[pos.x() +
+//                  pos.y() * v.size.x() +
+//                  pos.z() * v.size.x() * v.size.y()].x();
+//    else return 1.0f;
+  };
 
 	float3 gradient;
 
@@ -1114,7 +1141,10 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 		const Matrix4 view = raycastPose * getInverseCameraMatrix(k);
     range<2> RaycastglobalWorksize{computationSize.x(), computationSize.y()};
 
-    dagr::run<raycastKernel,0>(q,RaycastglobalWorksize,
+//    dagr::run<raycastKernel,0>(q,RaycastglobalWorksize,
+//      *ocl_vertex,*ocl_normal,*ocl_volume_data,
+//      volumeResolution,volumeDimensions,view,nearPlane,farPlane,step,largestep);
+    dagr::run<raycastKernel2,0>(q,RaycastglobalWorksize,
       *ocl_vertex,*ocl_normal,*ocl_volume_data,
       volumeResolution,volumeDimensions,view,nearPlane,farPlane,step,largestep);
 	}
