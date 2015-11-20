@@ -456,7 +456,10 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
   *((float3 *)(row.J + 0)) = referenceNormal; // a la vstore3
 //  *((float3 *)(row.J + 3)) = cross(projectedVertex, referenceNormal);
   float3 ret = cross(projectedVertex, referenceNormal);
-  *((float3 *)(row.J + 3)) = ret;
+  row.J[0] = ret.x();
+  row.J[1] = ret.y();
+  row.J[2] = ret.z();
+//  *((float3 *)(row.J + 3)) = ret;
   // row.J + 0 -> row.J[0:2]          row.J + 3 ->  row.J[3:5]
 #endif // __CL_SYCL_DEVICE__
 }
