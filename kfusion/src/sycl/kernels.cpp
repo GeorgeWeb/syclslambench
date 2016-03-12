@@ -816,7 +816,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
 
     const range<2>  imageSize2{localimagesize.x(),localimagesize.y()};
     dagr::run<vertex2normalKernel,0>(q, imageSize2,
-               *ocl_inputNormal[i], dagr::wo(*ocl_inputVertex[i]));
+               *ocl_inputNormal[i], dagr::wo(*ocl_inputVertex[i])); // wo -> ro?
 
 		localimagesize = make_uint2(localimagesize.x() / 2, localimagesize.y() / 2);
 	}
