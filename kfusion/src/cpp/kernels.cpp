@@ -1011,7 +1011,7 @@ void Kfusion::dumpVolume(std::string filename) {
 	std::cout << "Dumping the volumetric representation on file: " << filename
 			<< std::endl;
 	fDumpFile.open(filename.c_str(), std::ios::out | std::ios::binary);
-	if (fDumpFile == NULL) {
+	if (!fDumpFile.is_open()) {
 		std::cout << "Error opening file: " << filename << std::endl;
 		exit(1);
 	}
