@@ -432,8 +432,10 @@ struct Configuration {
 				std::cerr << "update map_size to " << this->volume_size.x()
 						<< "mx" << this->volume_size.y() << "mx"
 						<< this->volume_size.z() << "m" << std::endl;
-				if ((this->volume_size.x() <= 0) || (this->volume_size.y() <= 0)
-						|| (this->volume_size.z() <= 0)) {
+        using vse_t = decltype(volume_size)::element_type;
+				if ((this->volume_size.x() <= static_cast<vse_t>(0)) ||
+            (this->volume_size.y() <= static_cast<vse_t>(0)) ||
+            (this->volume_size.z() <= static_cast<vse_t>(0))) {
 #else
 				std::cerr << "update map_size to " << this->volume_size.x
 						<< "mx" << this->volume_size.y << "mx"
@@ -464,9 +466,10 @@ struct Configuration {
 						<< this->volume_resolution.x() << "x"
 						<< this->volume_resolution.y() << "x"
 						<< this->volume_resolution.z() << std::endl;
-				if ((this->volume_resolution.x() <= 0)
-						|| (this->volume_resolution.y() <= 0)
-						|| (this->volume_resolution.z() <= 0)) {
+        using vre_t = decltype(volume_resolution)::element_type;
+				if ((this->volume_resolution.x() <= static_cast<vre_t>(0)) ||
+            (this->volume_resolution.y() <= static_cast<vre_t>(0)) ||
+            (this->volume_resolution.z() <= static_cast<vre_t>(0))) {
 #else
 						<< this->volume_resolution.x << "x"
 						<< this->volume_resolution.y << "x"

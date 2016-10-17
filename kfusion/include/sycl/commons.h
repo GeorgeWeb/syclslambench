@@ -517,7 +517,7 @@ inline void compareNormal(std::string str, float3* l, float3 * r, uint size) {
 			std::cout << "Error into " << str << " at " << i << std::endl;
 			std::cout << "l.x() =  " << l[i].x() << std::endl;
 			std::cout << "r.x() =  " << r[i].x() << std::endl;
-		} else if (r[i].x() != INVALID) {
+		} else if (r[i].x() != static_cast<float>(INVALID)) {
 			if (std::abs(l[i].y() - r[i].y()) > epsilon) {
 				std::cout << "Error into " << str << " at " << i << std::endl;
 				std::cout << "l.y() =  " << l[i].y() << std::endl;

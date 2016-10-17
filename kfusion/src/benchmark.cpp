@@ -55,8 +55,10 @@ int main(int argc, char ** argv) {
 	assert(config.compute_size_ratio > 0);
 	assert(config.integration_rate > 0);
 #ifdef SYCL
-	assert(config.volume_size.x() > 0);
-	assert(config.volume_resolution.x() > 0);
+  using cvse_t = decltype(config.volume_size)::element_type;
+  using cvre_t = decltype(config.volume_resolution)::element_type;
+	assert(config.volume_size.x() > static_cast<cvse_t>(0));
+	assert(config.volume_resolution.x() > static_cast<cvre_t>(0));
 #else
 	assert(config.volume_size.x > 0);
 	assert(config.volume_resolution.x > 0);
