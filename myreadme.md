@@ -5,7 +5,7 @@ sudo apt-get install qt5-default freeglut3-dev libxmu-dev libxi-dev
 # TooN
 
 cd /code/ext
-git clone git://github.com/edrosten/TooN.git
+git clone https://github.com/edrosten/TooN.git
 cd TooN/
 ./configure --prefix=$PWD/install
 make
