@@ -22,6 +22,8 @@
 
 #include <constant_parameters.h>
 
+extern int optind;
+
 ////////////////////////// RUNTIME PARAMETERS //////////////////////
 
 #define DEFAULT_ITERATION_COUNT 3
@@ -35,9 +37,6 @@ const int default_compute_size_ratio = 1;
 const int default_integration_rate = 2;
 const int default_rendering_rate = 4;
 const int default_tracking_rate = 1;
-// These 3 did use .x() etc. which are all non-const, but...only const global
-// variables have internal linkage; so avoiding multiple definition errors.
-// So, m_data[N] is used instead; and thankfully only in this file.
 const uint3 default_volume_resolution = make_uint3(256, 256, 256);
 const float3 default_volume_size = make_float3(2.f, 2.f, 2.f);
 const float3 default_initial_pos_factor = make_float3(0.5f, 0.5f, 0.0f);
@@ -94,6 +93,8 @@ struct Configuration {
 	std::string dump_volume_file;
 	std::string input_file;
 	std::string log_file;
+	std::ofstream log_filestream;
+	std::ostream *log_stream;
 
 	float4 camera;
 	bool camera_overrided;
@@ -106,7 +107,6 @@ struct Configuration {
 	bool render_volume_fullsize;
 	inline
 	void print_arguments() {
-
 		std ::cerr << "-c  (--compute-size-ratio)       : default is " << default_compute_size_ratio << "   (same size)      " << std::endl;
 		std ::cerr << "-d  (--dump-volume) <filename>   : Output volume file              " << std::endl;
 		std ::cerr << "-f  (--fps)                      : default is " << default_fps       << std::endl;
@@ -116,27 +116,67 @@ struct Configuration {
 		std ::cerr << "-o  (--log-file) <filename>      : default is stdout               " << std::endl;
 		std ::cerr << "-m  (--mu)                       : default is " << default_mu << "               " << std::endl;
 #ifdef SYCL
-		std ::cerr << "-p  (--init-pose)                : default is " << default_initial_pos_factor.m_data[0] << "," << default_initial_pos_factor.m_data[1] << "," << default_initial_pos_factor.m_data[2] << "     " << std::endl;
+    	std ::cerr << "-p  (--init-pose)                : default is " << default_initial_pos_factor.get_value(0) << "," << default_initial_pos_factor.get_value(1) << "," << default_initial_pos_factor.get_value(2) << "     " << std::endl;
 #else
 		std ::cerr << "-p  (--init-pose)                : default is " << default_initial_pos_factor.x << "," << default_initial_pos_factor.y << "," << default_initial_pos_factor.z << "     " << std::endl;
 #endif
 		std ::cerr << "-q  (--no-gui)                   : default is to display gui"<<std::endl;
 		std ::cerr << "-r  (--integration-rate)         : default is " << default_integration_rate << "     " << std::endl;
 #ifdef SYCL
-		std ::cerr << "-s  (--volume-size)              : default is " << default_volume_size.m_data[0] << "," << default_volume_size.m_data[1] << "," << default_volume_size.m_data[2] << "      " << std::endl;
+		std ::cerr << "-s  (--volume-size)              : default is " << default_volume_size.get_value(0) << "," << default_volume_size.get_value(1) << "," << default_volume_size.get_value(2) << "      " << std::endl;
 #else
 		std ::cerr << "-s  (--volume-size)              : default is " << default_volume_size.x << "," << default_volume_size.y << "," << default_volume_size.z << "      " << std::endl;
 #endif
 		std ::cerr << "-t  (--tracking-rate)            : default is " << default_tracking_rate << "     " << std::endl;
 #ifdef SYCL
-		std ::cerr << "-v  (--volume-resolution)        : default is " << default_volume_resolution.m_data[0] << "," << default_volume_resolution.m_data[1] << "," << default_volume_resolution.m_data[2] << "    " << std::endl;
+		std ::cerr << "-v  (--volume-resolution)        : default is " << default_volume_resolution.get_value(0) << "," << default_volume_resolution.get_value(1) << "," << default_volume_resolution.get_value(2) << "    " << std::endl;
 #else
 		std ::cerr << "-v  (--volume-resolution)        : default is " << default_volume_resolution.x << "," << default_volume_resolution.y << "," << default_volume_resolution.z << "    " << std::endl;
 #endif
 		std ::cerr << "-y  (--pyramid-levels)           : default is 10,5,4     " << std::endl;
 		std ::cerr << "-z  (--rendering-rate)   : default is " << default_rendering_rate << std::endl;
-
 	}
+	void print_values(std::ostream& out) {
+time_t rawtime;
+		struct tm *timeinfo;
+		char buffer[80];
+		time(&rawtime);
+		timeinfo=localtime(&rawtime);
+		strftime(buffer,80,"%Y-%m-%d %I:%M:%S",timeinfo);
+		out << "SLAMBench Report run started:\t" << buffer << std::endl<< std::endl;
+		out << "Scene properties:" << std::endl<<"=================" << std::endl<< std::endl;
+		out << "input-file: " << input_file <<std::endl;
+#ifdef SYCL
+		out << "volume-size: " << volume_size.get_value(0) << "," << volume_size.get_value(1) << "," << volume_size.get_value(2) << std::endl;		
+		out << "camera: "<< camera.get_value(0)<<","<< camera.get_value(1)<<","<< camera.get_value(2)<<","<< camera.get_value(3)<<  std::endl;
+		out << "init-pose: " << initial_pos_factor.get_value(0) << "," << initial_pos_factor.get_value(1) << "," <<initial_pos_factor.get_value(2) << std::endl;
+#else
+		out << "volume-size: " << volume_size.x << "," << volume_size.y << "," << volume_size.z << std::endl;	
+		out << "camera: "<< camera.x<<","<< camera.y<<","<< camera.z<<","<< camera.w<<  std::endl;
+		out << "init-pose: " << initial_pos_factor.x << "," << initial_pos_factor.y << "," <<initial_pos_factor.z << std::endl;
+#endif		
+		out << std::endl;	
+		out << "Algorithmic properties:"<<std::endl<<"======================="<<std::endl << std::endl;
+		out << "compute-size-ratio: " << compute_size_ratio << std::endl;	
+#ifdef SYCL		
+		out << "volume-resolution: " << volume_resolution.get_value(0) << "," << volume_resolution.get_value(1) << "," << volume_resolution.get_value(2) << "    " << std::endl;
+#else
+		out << "volume-resolution: " << volume_resolution.x << "," << volume_resolution.y << "," << volume_resolution.z << "    " << std::endl;		
+#endif
+		out << "mu: " << mu << std::endl;
+		out << "icp-threshold: " << icp_threshold << std::endl;
+		out << "pyramid-levels: " ;
+		for(int i=0; i< pyramid.size();i++){
+			if(i!=0)
+				out<<",";
+			out<<pyramid[i];
+		}		
+		out << std::endl;		
+		out << "tracking-rate: "  << tracking_rate << std::endl;		
+		out << "integration1-rate: " << integration_rate << std::endl;		
+		out << "rendering-rate: " << rendering_rate << std::endl;
+		out << "fps: " << fps << std::endl;
+}
 
 #ifdef SYCL
 	inline float3 atof3(char * optarg) {
@@ -324,6 +364,7 @@ struct Configuration {
 		int c;
 		int option_index = 0;
 		int flagErr = 0;
+		optind = 1;
 		while ((c = getopt_long(argc, argv, short_options.c_str(), long_options,
 				&option_index)) != -1)
 			switch (c) {
@@ -432,8 +473,8 @@ struct Configuration {
 				std::cerr << "update map_size to " << this->volume_size.x()
 						<< "mx" << this->volume_size.y() << "mx"
 						<< this->volume_size.z() << "m" << std::endl;
-				if ((this->volume_size.x() <= 0) || (this->volume_size.y() <= 0)
-						|| (this->volume_size.z() <= 0)) {
+				if ((this->volume_size.x() <= 0.0f) || (this->volume_size.y() <= 0.0f)
+						|| (this->volume_size.z() <= 0.0f)) {
 #else
 				std::cerr << "update map_size to " << this->volume_size.x
 						<< "mx" << this->volume_size.y << "mx"
@@ -464,9 +505,9 @@ struct Configuration {
 						<< this->volume_resolution.x() << "x"
 						<< this->volume_resolution.y() << "x"
 						<< this->volume_resolution.z() << std::endl;
-				if ((this->volume_resolution.x() <= 0)
-						|| (this->volume_resolution.y() <= 0)
-						|| (this->volume_resolution.z() <= 0)) {
+				if ((this->volume_resolution.x() <= static_cast<unsigned int>(0))
+						|| (this->volume_resolution.y() <= static_cast<unsigned int>(0))
+						|| (this->volume_resolution.z() <= static_cast<unsigned int>(0))) {
 #else
 						<< this->volume_resolution.x << "x"
 						<< this->volume_resolution.y << "x"

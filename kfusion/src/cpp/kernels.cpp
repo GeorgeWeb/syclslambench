@@ -113,6 +113,9 @@ void Kfusion::languageSpecificConstructor() {
 
 Kfusion::~Kfusion() {
 
+	free(floatDepth);
+	free(trackingResult);
+
 	free(reductionoutput);
 	for (unsigned int i = 0; i < iterations.size(); ++i) {
 		free(ScaledDepth[i]);
@@ -234,7 +237,7 @@ void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
 			const float3 down = in[pdown.x + imageSize.x * pdown.y];
 
 			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
-				out[x + y * imageSize.x].x = INVALID;
+				out[x + y * imageSize.x].x = KFUSION_INVALID;
 				continue;
 			}
 			const float3 dxv = right - left;
@@ -508,7 +511,7 @@ void trackKernel(TrackData* output, const float3* inVertex,
 
 			TrackData & row = output[pixel.x + pixel.y * refSize.x];
 
-			if (inNormal[pixel.x + pixel.y * inSize.x].x == INVALID) {
+			if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
 				row.result = -1;
 				continue;
 			}
@@ -529,7 +532,7 @@ void trackKernel(TrackData* output, const float3* inVertex,
 			const float3 referenceNormal = refNormal[refPixel.x
 					+ refPixel.y * refSize.x];
 
-			if (referenceNormal.x == INVALID) {
+			if (referenceNormal.x == KFUSION_INVALID) {
 				row.result = -3;
 				continue;
 			}
@@ -739,14 +742,14 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 				float3 surfNorm = integration.grad(make_float3(hit));
 				if (length(surfNorm) == 0) {
 					//normal[pos] = normalize(surfNorm); // APN added
-					normal[pos.x + pos.y * inputSize.x].x = INVALID;
+					normal[pos.x + pos.y * inputSize.x].x = KFUSION_INVALID;
 				} else {
 					normal[pos.x + pos.y * inputSize.x] = normalize(surfNorm);
 				}
 			} else {
 				//std::cerr<< "RAYCAST MISS "<<  pos.x << " " << pos.y <<"  " << hit.w <<"\n";
 				vertex[pos.x + pos.y * inputSize.x] = make_float3(0);
-				normal[pos.x + pos.y * inputSize.x] = make_float3(INVALID, 0,
+				normal[pos.x + pos.y * inputSize.x] = make_float3(KFUSION_INVALID, 0,
 						0);
 			}
 		}
@@ -1000,18 +1003,18 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu,
 
 }
 
-void Kfusion::dumpVolume(std::string filename) {
+void Kfusion::dumpVolume(const char *filename) {
 
 	std::ofstream fDumpFile;
 
-	if (filename == "") {
+	if (filename == NULL) {
 		return;
 	}
 
 	std::cout << "Dumping the volumetric representation on file: " << filename
 			<< std::endl;
-	fDumpFile.open(filename.c_str(), std::ios::out | std::ios::binary);
-	if (fDumpFile == NULL) {
+	fDumpFile.open(filename, std::ios::out | std::ios::binary);
+	if (fDumpFile.fail()) {
 		std::cout << "Error opening file: " << filename << std::endl;
 		exit(1);
 	}
@@ -1041,6 +1044,16 @@ void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
 void Kfusion::renderDepth(uchar4 * out, uint2 outputSize) {
 	renderDepthKernel(out, floatDepth, outputSize, nearPlane, farPlane);
 }
+
+void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
+			 float4 k, uint integration_rate, uint tracking_rate,
+			 float icp_threshold, float mu, const uint frame) {
+  preprocessing(inputDepth, inputSize);
+  _tracked = tracking(k, icp_threshold, tracking_rate, frame);
+  _integrated = integration(k, integration_rate, mu, frame);
+  raycasting(k, mu, frame);
+}
+
 
 void synchroniseDevices() {
 	// Nothing to do in the C++ implementation

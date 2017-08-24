@@ -90,8 +90,8 @@ DepthReader *createReader(Configuration *config, std::string filename) {
 								config->volume_resolution.x = ::atoi(dims[0].c_str());
 							config->volume_resolution.y = config->volume_size.x;
 							config->volume_resolution.z = config->volume_size.x;
-#endif
-						}
+#endif										
+						}			
 #ifdef SYCL
 						std::cout << "volumetric-size: "
 								<< config->volume_resolution.x() << "x"
@@ -203,7 +203,7 @@ DepthReader *createReader(Configuration *config, std::string filename) {
 									<< config->camera.y << ","
 									<< config->camera.z << ","
 									<< config->camera.w << std::endl;
-#endif
+#endif			
 						} else {
 							std::cerr
 									<< "ERROR: camera specified with incorrect data. (was "
@@ -219,7 +219,8 @@ DepthReader *createReader(Configuration *config, std::string filename) {
 						}
 						config->input_file = value;
 						filename = value;
-						std::cout << "input-file: " << config->input_file << std::endl;
+						std::cout << "input-file: " << config->input_file
+								<< std::endl;
 						newFile = true;
 						continue;
 					}

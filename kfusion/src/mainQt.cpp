@@ -101,7 +101,12 @@ int main(int argc, char ** argv) {
 
 	Configuration config(argc, argv);
 	powerMonitor = new PowerMonitor();
-
+	bool doPower = (powerMonitor != NULL) && powerMonitor->isActive();
+	if (!doPower) {
+	  std::cerr << "The power monitor is inactive." << std::endl;
+	}
+	
+	
 	// ========= READER INITIALIZATION  =========
 	reader = createReader(&config);
 
@@ -129,9 +134,9 @@ int main(int argc, char ** argv) {
 	inputRGB = (uchar3*) malloc(sizeof(uchar3) * inputSize.x() * inputSize.y());
 #else
 	inputRGB = (uchar3*) malloc(sizeof(uchar3) * inputSize.x * inputSize.y);
-#endif
-	depthRender  = (uchar4*) malloc(sizeof(uchar4) * width * height);
-	trackRender  = (uchar4*) malloc(sizeof(uchar4) * width * height);
+#endif	
+	depthRender = (uchar4*) malloc(sizeof(uchar4) * width * height);
+	trackRender = (uchar4*) malloc(sizeof(uchar4) * width * height);
 	volumeRender = (uchar4*) malloc(sizeof(uchar4) * width * height);
 
 	float3 init_pose = config.initial_pos_factor * config.volume_size;
@@ -140,6 +145,19 @@ int main(int argc, char ** argv) {
 
 	//temporary fix to test rendering fullsize
 	config.render_volume_fullsize = false;
+	if( (reader != NULL)  && !(config.camera_overrided)) {
+		config.camera=reader->getK();
+	}
+	if (config.log_file != "") {		
+		config.log_filestream.open(config.log_file.c_str());
+		config.log_stream = &(config.log_filestream);		
+		config.print_values(*(config.log_stream));
+	} else {
+		config.log_stream = &std::cout;
+		if(config.no_gui)
+			config.print_values(*(config.log_stream));	
+	}
+
 
 	//The following runs the process loop for processing all the frames, if QT is specified use that, else use GLUT
 	//We can opt to not run the gui which would be faster
@@ -167,21 +185,20 @@ int main(int argc, char ** argv) {
 	// ==========     DUMP VOLUME      =========
 
 	if (config.dump_volume_file != "") {
-		kfusion->dumpVolume(config.dump_volume_file);
+	  kfusion->dumpVolume(config.dump_volume_file.c_str());
 	}
 
-	if (config.log_file != "") {
-		std::ofstream logStream(config.log_file.c_str());
-		Stats.print_all_data(logStream);
-		logStream.close();
-	}
+	if (config.log_file != "" || config.no_gui) {
+		Stats.print_all_data(*(config.log_stream));
+	
 
-	if (powerMonitor && powerMonitor->isActive()) {
-		std::ofstream powerStream("power.rpt");
-		powerMonitor->powerStats.print_all_data(powerStream);
-		powerStream.close();
-	}
-
+		if (powerMonitor && powerMonitor->isActive()) {
+			powerMonitor->powerStats.print_all_data(*(config.log_stream));
+		}
+		if (config.log_file != "") {
+			config.log_filestream.close();
+		}
+    }
 	//  =========  FREE BASIC BUFFERS  =========
 
 	free(inputDepth);
@@ -193,6 +210,7 @@ int main(int argc, char ** argv) {
 
 int processAll(DepthReader *reader, bool processFrame, bool renderImages,
 		Configuration *config, bool reset) {
+	static bool doPower = (powerMonitor != NULL) && powerMonitor->isActive();
 	static float duration = tick();
 	static int frameOffset = 0;
 	static bool firstFrame = true;
@@ -214,15 +232,18 @@ int processAll(DepthReader *reader, bool processFrame, bool renderImages,
 	if (reset) {
 		frameOffset = reader->getFrameNumber();
 	}
+	
 	bool finished = false;
 
-	if (processFrame) {
-		Stats.start();
-	}
 	timings[0] = tock();
 	if (processFrame && (reader->readNextDepthFrame(inputRGB, inputDepth))) {
+	  
+	
+		Stats.start();
+	
+	
 		frame = reader->getFrameNumber() - frameOffset;
-		if (powerMonitor != NULL && !firstFrame)
+		if (doPower)
 			powerMonitor->start();
 
 		pos = kfusion->getPosition();
@@ -263,15 +284,30 @@ int processAll(DepthReader *reader, bool processFrame, bool renderImages,
 		timings[6] = tock();
 	}
 
-	if (processFrame) {
-		if (powerMonitor != NULL && !firstFrame)
+	if (processFrame && !finished) {
+		if (powerMonitor != NULL) {
 			powerMonitor->sample();
+                }
 		storeStats(frame, timings, pos, tracked, integrated);
 
-		if (config->no_gui && (config->log_file == ""))
-			Stats.print();
+		if (config->no_gui || (config->log_file != "")){	
+			if(firstFrame){			
+				Stats.printHeader(*(config->log_stream));
+				if(doPower) {
+					powerMonitor->powerStats.printHeader(*(config->log_stream));
+                                }
+				*(config->log_stream) << std::endl;
+			}	
+			
+			Stats.print(*(config->log_stream));
+			if (doPower){
+				powerMonitor->powerStats.print(*(config->log_stream));
+			}
+			*(config->log_stream) << std::endl;
+        }
 		firstFrame = false;
 	}
+	
 	return (finished);
 }
 

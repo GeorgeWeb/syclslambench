@@ -564,7 +564,7 @@ public:
 	bool integration(__device_builtin__float4 k, uint integration_rate,
 			float mu, uint frame);
 
-	void dumpVolume(std::string filename);
+	void dumpVolume(const char* filename);
 	void renderVolume(__device_builtin__uchar4 * out,
 			const __device_builtin__uint2 outputSize, int, int,
 			__device_builtin__float4 k, float largestep);
@@ -868,16 +868,16 @@ return doIntegrate;
 
 }
 
-void Kfusion::dumpVolume(std::string filename) {
+void Kfusion::dumpVolume(const char* filename) {
 std::ofstream fDumpFile;
 
-if (filename.compare("") == 0) {
+if (filename == NULL) {
 	return;
 }
 
 cout << "Dumping the volumetric representation on file: " << filename << endl;
-fDumpFile.open(filename.c_str(), ios::out | ios::binary);
-if (fDumpFile == NULL) {
+fDumpFile.open(filename, ios::out | ios::binary);
+if (fDumpFile.fail()) {
 	cout << "Error opening file: " << filename << endl;
 	exit(1);
 }
@@ -943,6 +943,9 @@ void Kfusion::renderDepth(__device_builtin__uchar4 * out,
 	TOCK();
 	cudaMemcpy(out, depthModel.getDeviceImage().data(), outputSize.x * outputSize.y * sizeof(uchar4), cudaMemcpyDeviceToHost);
 }
+
+
+
 
 void synchroniseDevices() {
 	cudaDeviceSynchronize();

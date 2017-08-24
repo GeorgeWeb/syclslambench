@@ -1,6 +1,6 @@
 # README #
 
-SLAMBench Release Candidate 1.1
+SLAMBench Release Candidate 1.2 [![Build Status](https://travis-ci.org/pamela-project/slambench.svg?branch=master)](https://travis-ci.org/pamela-project/slambench)
 
   Copyright (c) 2014 University of Edinburgh, Imperial College, University of Manchester.
 
@@ -235,6 +235,77 @@ An example of use of the main application is:
 
 ```
 
+## Live mode ##
+
+To run the live mode (using a Depth Sensor), you need to connect the Sensor, and to install the proper drivers.
+Here is the procedure with Fedora 24 :
+```
+# root user
+yum install libudev-devel
+```
+
+Then as normal user, you will compile OpenNI2:
+```
+git clone https://github.com/occipital/OpenNI2.git OpenNI2dev
+cd OpenNI2dev
+sed -i.bak "s/.javaDocExe, .-d., .java../[javaDocExe, '-d', 'java', '-Xdoclint:none']/" Source/Documentation/Runme.py
+cd Packaging
+./ReleaseVersion.py x64
+```
+
+This command output finishes by ```Done```. Then you need to install OpenNI2 :
+```
+cd Final
+mkdir -p  ~/.local/OpenNI2/
+tar xf OpenNI-Linux-x64-2.2.tar.bz2 -C  ~/.local/OpenNI2
+cd ~/.local/OpenNI2/OpenNI-Linux-x64-2.2/
+export OPENNI2_INCLUDE=/home/toky/.local/OpenNI2/OpenNI-Linux-x64-2.2/Include
+export OPENNI2_REDIST=/home/toky/.local/OpenNI2/OpenNI-Linux-x64-2.2/Redist
+```
+
+Possible error :
+```
+[toky@localhost Packaging]$ ./ReleaseVersion.py x64
+Creating installer for OpenNI 2.2 x64
+Traceback (most recent call last):
+  File "./ReleaseVersion.py", line 170, in <module>
+    subprocess.check_call(['make', '-C', '../', '-j' + calc_jobs_number(), 'PLATFORM=' + plat, 'release'], stdout=buildLog, stderr=buildLog)
+  File "/usr/lib64/python2.7/subprocess.py", line 541, in check_call
+    raise CalledProcessError(retcode, cmd)
+subprocess.CalledProcessError: Command '['make', '-C', '../', '-j2', 'PLATFORM=x64', 'release']' returned non-zero exit status 2
+```
+
+Our advice to fix this error is to manually run the command, to see the real problem (in this case we have seen libudev.h was missing) :
+```
+toky@localhost Packaging]$ make -C .. PLATFORM=x64 release
+make: Entering directory '/home/toky/work/pamela/slambench/OpenNI2'
+make -C ThirdParty/PSCommon/XnLib/Source
+make[1]: Entering directory '/home/toky/work/pamela/slambench/OpenNI2/ThirdParty/PSCommon/XnLib/Source'
+g++ -MD -MP -MT "./../Bin/Intermediate/x64-Release/libXnLib.a/XnLinuxUSB.d ../Bin/Intermediate/x64-Release/libXnLib.a/XnLinuxUSB.o" -c -msse3 -Wall -O2 -DNDEBUG -I../Include  -fPIC -fvisibility=hidden -Werror -o ../Bin/Intermediate/x64-Release/libXnLib.a/XnLinuxUSB.o Linux/XnLinuxUSB.cpp
+Linux/XnLinuxUSB.cpp:40:21: fatal error: libudev.h: No such file or directory
+ #include <libudev.h>
+                     ^
+compilation terminated.
+../../BuildSystem/CommonCppMakefile:130: recipe for target '../Bin/Intermediate/x64-Release/libXnLib.a/XnLinuxUSB.o' failed
+make[1]: *** [../Bin/Intermediate/x64-Release/libXnLib.a/XnLinuxUSB.o] Error 1
+make[1]: Leaving directory '/home/toky/work/pamela/slambench/OpenNI2/ThirdParty/PSCommon/XnLib/Source'
+Makefile:121: recipe for target 'ThirdParty/PSCommon/XnLib/Source' failed
+make: *** [ThirdParty/PSCommon/XnLib/Source] Error 2
+make: Leaving directory '/home/toky/work/pamela/slambench/OpenNI2'
+```
+
+To use a Kinect sensor, you will need libfreenect :
+
+```
+git clone https://github.com/OpenKinect/libfreenect.git
+cd libfreenect
+mkdir build
+cd build
+cmake .. -DBUILD_OPENNI2_DRIVER=ON
+make
+cp -L lib/OpenNI2-FreenectDriver/libFreenectDriver.so ~/.local/OpenNI2/OpenNI-Linux-x64-2.2/Redist/OpenNI2/Drivers/
+```
+
 #### 3. mainQt mode ####
 
 This is a GUI mode which internally uses Qt for the visualisation step. 
@@ -254,7 +325,7 @@ An example of use of the mainQt application is:
 KERNEL_TIMINGS=1 ./build/kfusion/kfusion-benchmark-cpp -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 2 -r 1 -k 481.2,480,320,240 -i  living_room_traj2_loop.raw -o  benchmark.2.cpp.log 2> kernels.2.cpp.log
 ```
 
-### OpernMP ###
+### OpenMP ###
 ```
 #!plain
 KERNEL_TIMINGS=1 ./build/kfusion/kfusion-benchmark-openmp -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 2 -r 1 -k 481.2,480,320,240 -i  living_room_traj2_loop.raw -o  benchmark.2.openmp.log 2> kernels.2.openmp.log
@@ -431,13 +502,20 @@ export DYLD_LIBRARY_PATH=/Users/lnardi/sw/OpenNI-MacOSX-x64-2.2/Samples/Bin:$DYL
 
 ## Release history ##
 
-Release candidat 1.1 (17 Mar 2015)  
-  * Bugfix : Move bilateralFilterKernel from preprocessing to tracking
-  * Bugfix : Wrong interpretation of ICP Threshold parameter.
-  * Esthetic : Uniformisation of HalfSampleRobustImage kernel
-  * Performance : Change float3 to float4 for the rendering kernels (No effect on OpenCL, but high performance improvement with CUDA)
-  * Performance : Add a dedicated buffer for the OpenCL rendering
-  * Feature : Add OSX support
+Release candidate 1.2 (To be define)
+
+* Bugfix : remove extra line of log.
+* ...
+
+Release candidate 1.1 (17 Mar 2015)
+
+* Bugfix : Move bilateralFilterKernel from preprocessing to tracking
+* Bugfix : Wrong interpretation of ICP Threshold parameter.
+* Esthetic : Uniformisation of HalfSampleRobustImage kernel
+* Performance : Change float3 to float4 for the rendering kernels (No effect on OpenCL, but high performance improvement with CUDA)
+* Performance : Add a dedicated buffer for the OpenCL rendering
+* Feature : Add OSX support
  
-Release candidat 1.0 (12 Nov 2014)
-  * First public release
+Release candidate 1.0 (12 Nov 2014)
+
+* First public release

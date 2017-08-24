@@ -55,8 +55,8 @@ int main(int argc, char ** argv) {
 	assert(config.compute_size_ratio > 0);
 	assert(config.integration_rate > 0);
 #ifdef SYCL
-	assert(config.volume_size.x() > 0);
-	assert(config.volume_resolution.x() > 0);
+	assert(config.volume_size.get_value(0) > 0);
+	assert(config.volume_resolution.get_value(0) > 0);
 #else
 	assert(config.volume_size.x > 0);
 	assert(config.volume_resolution.x > 0);
@@ -164,25 +164,16 @@ int main(int argc, char ** argv) {
 #endif
 
 		timings[1] = tock();
-
 		kfusion.preprocessing(inputDepth, inputSize);
-
 		timings[2] = tock();
-
 		bool tracked = kfusion.tracking(camera, config.icp_threshold,
 				config.tracking_rate, frame);
-
 		timings[3] = tock();
-
 		bool integrated = kfusion.integration(camera, config.integration_rate,
 				config.mu, frame);
-
 		timings[4] = tock();
-
 		bool raycast = kfusion.raycasting(camera, config.mu, frame);
-
 		timings[5] = tock();
-
 		kfusion.renderDepth(depthRender, computationSize);
 		kfusion.renderTrack(trackRender, computationSize);
 		kfusion.renderVolume(volumeRender, computationSize, frame,
@@ -209,7 +200,7 @@ int main(int argc, char ** argv) {
 	// ==========     DUMP VOLUME      =========
 
 	if (config.dump_volume_file != "") {
-		kfusion.dumpVolume(config.dump_volume_file);
+	  kfusion.dumpVolume(config.dump_volume_file.c_str());
 	}
 
 	//  =========  FREE BASIC BUFFERS  =========

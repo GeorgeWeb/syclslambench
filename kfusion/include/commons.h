@@ -11,7 +11,7 @@
 
 #ifndef _COMMONS_
 #define _COMMONS_
-
+#define KFUSION_INVALID -2
 #if defined(__GNUC__)
 // circumvent packaging problems in gcc 4.7.0
 #undef _GLIBCXX_ATOMIC_BUILTINS
@@ -31,7 +31,7 @@
 #include <iterator>
 
 // Internal dependencies
-#include <default_parameters.h> // (CUDA) includes vector_types.h + cutil_math.h
+#include <default_parameters.h>
 #ifndef CUDA
 #ifdef SYCL
 #include <sycl_vec_maths.hpp>
@@ -50,7 +50,7 @@
 
 ////////////////////////// MATh STUFF //////////////////////
 
-#define INVALID -2
+
 // DATA TYPE
 
 inline
@@ -506,7 +506,7 @@ inline void compareNormal(std::string str, float3* l, float3 * r, uint size) {
 			std::cout << "Error into " << str << " at " << i << std::endl;
 			std::cout << "l.x =  " << l[i].x << std::endl;
 			std::cout << "r.x =  " << r[i].x << std::endl;
-		} else if (r[i].x != INVALID) {
+		} else if (r[i].x != -2) {
 			if (std::abs(l[i].y - r[i].y) > epsilon) {
 				std::cout << "Error into " << str << " at " << i << std::endl;
 				std::cout << "l.y =  " << l[i].y << std::endl;
@@ -575,8 +575,7 @@ void writeVolume(std::string filename, Volume v) {
 
 	std::ofstream fDumpFile;
 	fDumpFile.open(filename.c_str(), std::ios::out | std::ios::binary);
-
-	if (fDumpFile == NULL) {
+	if (fDumpFile.fail()) {
 		std::cout << "Error opening file: " << filename << std::endl;
 		exit(1);
 	}

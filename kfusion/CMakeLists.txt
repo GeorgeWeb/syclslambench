@@ -9,6 +9,7 @@ find_package(CUDA   )
 find_package(GLUT   )
 find_package(OpenGL )
 find_package(OpenNI2)
+find_package(PAPI)
 
 find_package(PkgConfig)
 find_package(Qt5Core)
@@ -20,6 +21,10 @@ find_package(Qt5PrintSupport)
 include_directories(./include $ENV{DAGR_INCLUDE} ${TOON_INCLUDE_PATHS} ./thirdparty)
 
 
+if (CUDA_FOUND) 
+ SET( CUDA_PROPAGATE_HOST_FLAGS OFF )
+endif(CUDA_FOUND)
+
  # ---- PREPARE COMMON DEPENDENCIES  ------------ 
 if(APPLE)
     set(common_libraries     stdc++ pthread)
@@ -30,7 +35,6 @@ endif(APPLE)
 
 set(common_compile_flags "")
 
-
  # ----------------- SYCL VERSION ----------------- 
 
 if    (SYCL_FOUND)    # For this, CXX must also be set to syclcc
@@ -39,6 +43,7 @@ if    (SYCL_FOUND)    # For this, CXX must also be set to syclcc
   add_definitions( -DSYCL )
   add_version(${appname} sycl "" "") # Paths 
 endif (SYCL_FOUND)
+
 
  # ----------------- CPP VERSION ----------------- 
 
@@ -72,8 +77,8 @@ set(kfusion_cuda_srcs
 	src/cuda/kernels.cu
 	thirdparty/kfusion.h
 	)
-	
-    cuda_add_library(${appname}-cuda    STATIC  ${kfusion_cuda_srcs} OPTIONS -O3 -std=c++11 )
+   	
+    cuda_add_library(${appname}-cuda    STATIC  ${kfusion_cuda_srcs} OPTIONS -O3 )
 	target_link_libraries(${appname}-cuda   ${common_libraries})	
     add_version(${appname} cuda    "" "")
 
@@ -82,4 +87,5 @@ endif(CUDA_FOUND)
 #  ----------------- thirdparty ----------------- 
 
 add_subdirectory( thirdparty    )
+
 

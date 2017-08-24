@@ -1,0 +1,22 @@
+# compile files
+build/
+*.log
+
+# binaries
+kfusion/tests/dataset/
+scene/
+
+# eclipse files
+.cproject
+.project
+.settings/
+
+living_room_*
+livingRoom*.gt.freiburg
+
+#editor backups
+*~
+
+TooN/
+OpenNI2dev/
+libfreenect/
