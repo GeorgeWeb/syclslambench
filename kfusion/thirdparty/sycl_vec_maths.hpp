@@ -8,7 +8,13 @@
 
 */
 
+#ifdef TRISYCL
+#include <CL/sycl.hpp>
+using int_t = int;
+#else
 #include <SYCL/sycl.hpp>
+using int_t = int;
+#endif
 using cl::sycl::accessor; using cl::sycl::buffer;  using cl::sycl::handler;
 using cl::sycl::nd_range; using cl::sycl::range;
 using cl::sycl::nd_item;  using cl::sycl::item;
@@ -72,14 +78,14 @@ inline float3 fmaxf(float3 a, float3 b) {
 	return float3{fmaxf(a.x(), b.x()), fmaxf(a.y(), b.y()), fmaxf(a.z(), b.z())};
 }
 inline float  min(float3 a) { return fminf(a.x(), fminf(a.y(), a.z())); }
-inline uint   max(uint3 a)  { 	
-	return max(a.get_value(0), max(a.get_value(1), a.get_value(2))); 
+inline uint   max(uint3 a)  {
+	return max(a[0], max(a[1], a[2]));
 }
 inline float3 operator*(float b, float3 a) {
 	return float3{b*a.x(), b*a.y(), b*a.z()};
 }
 inline uint2 operator*(uint b, uint2 a) { return uint2{b * a.x(), b * a.y()}; }
-// SYCL's dot, length, normalize etc. don't work on host 
+// SYCL's dot, length, normalize etc. don't work on host
 inline float my_dot(float3 a, float3 b) {
   return a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
 }

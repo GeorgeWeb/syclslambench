@@ -90,7 +90,7 @@ inline float sq(float r) {
 inline uchar4 gs2rgb(double h) {
 	uchar4 rgb;
 	double v;
-	double r, g, b;
+	double r{0}, g{0}, b{0};
 	v = 0.75;
 	if (v > 0) {
 		double m;
@@ -146,7 +146,7 @@ inline uchar4 gs2rgb(double h) {
 	rgb.x() = r * 255;
 	rgb.y() = g * 255;
 	rgb.z() = b * 255;
-	rgb.w() = 0; // Only for padding purposes 
+	rgb.w() = 0; // Only for padding purposes
 	return rgb;
 }
 

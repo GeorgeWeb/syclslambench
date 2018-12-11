@@ -36,7 +36,7 @@ inline double tock() {
 		clock_gettime(CLOCK_MONOTONIC, &clockData);
 #endif
 		return (double) clockData.tv_sec + clockData.tv_nsec / 1000000000.0;
-}	
+}
 
 
 
@@ -55,8 +55,8 @@ int main(int argc, char ** argv) {
 	assert(config.compute_size_ratio > 0);
 	assert(config.integration_rate > 0);
 #ifdef SYCL
-	assert(config.volume_size.get_value(0) > 0);
-	assert(config.volume_resolution.get_value(0) > 0);
+	assert(config.volume_size[0] > 0);
+	assert(config.volume_resolution[0] > 0);
 #else
 	assert(config.volume_size.x > 0);
 	assert(config.volume_resolution.x > 0);
@@ -212,4 +212,3 @@ int main(int argc, char ** argv) {
 	return 0;
 
 }
-

@@ -51,7 +51,7 @@ static Configuration *config;
 //Typically this is when we rotate an image
 static bool forceRender = false;
 
-#ifdef _OPENMP
+#if defined(_OPENMP) && (!defined(TRISYCL))
 static int numThreads=1;
 static void setThreads() {
 	omp_set_num_threads(numThreads);
@@ -76,7 +76,7 @@ static bool loopEnabled = false;
 void setLoopMode(bool value) {
 	loopEnabled = value;
 }
-//Should we have a powerMonitor in the main code we can 
+//Should we have a powerMonitor in the main code we can
 extern PowerMonitor *powerMonitor;
 
 // We can pass this to the QT and it will allow us to change features in the Kfusion
@@ -92,28 +92,28 @@ static void newKfusion(bool resetPose) {
 	if (!resetPose)
 		*kfusion_pp = new Kfusion(
 				make_uint2(640 / config->compute_size_ratio,
-						480 / config->compute_size_ratio),						
+						480 / config->compute_size_ratio),
 #ifdef SYCL
 				make_uint3(config->volume_resolution.x(),
 						config->volume_resolution.x(),
 						config->volume_resolution.x()),
 				make_float3(config->volume_size.x(), config->volume_size.x(),
-						config->volume_size.x()), 
+						config->volume_size.x()),
 #else
 				make_uint3(config->volume_resolution.x,
 						config->volume_resolution.x,
 						config->volume_resolution.x),
 				make_float3(config->volume_size.x, config->volume_size.x,
-						config->volume_size.x), 
-#endif											
+						config->volume_size.x),
+#endif
 						init_pose, config->pyramid);
 	else {
 #ifdef SYCL
 		trans = SE3<float>::exp(
-				makeVector(config->initial_pos_factor.get_value(0),
-						config->initial_pos_factor.get_value(1),
-						config->initial_pos_factor.get_value(2), 0, 0, 0)
-						* config->volume_size.get_value(0));
+				makeVector(config->initial_pos_factor[0],
+						config->initial_pos_factor[1],
+						config->initial_pos_factor[2], 0, 0, 0)
+						* config->volume_size[0]);
 #else
 		trans = SE3<float>::exp(
 				makeVector(config->initial_pos_factor.x,
@@ -256,7 +256,7 @@ CameraState setEnableCamera(CameraState state, string inputFile) {
 //This function is passed to QT and is called whenever we aren't busy i.e in a constant loop
 void qtIdle(void) {
 	static bool shod = false;
-	//This will set the view for rendering the model, either to the tracked camera view or the static view    
+	//This will set the view for rendering the model, either to the tracked camera view or the static view
 	Matrix4 pose = toMatrix4(trans * rot);
 	if (usePOV)
 		(*kfusion_pp)->setViewPose(); //current position as found by track
@@ -278,7 +278,7 @@ void qtIdle(void) {
 			reset = false;
 		}
 	} else {
-		//If we aren't reading 
+		//If we aren't reading
 		if ((*reader_pp == NULL) || !(*reader_pp)->cameraOpen
 				|| !(*reader_pp)->cameraActive)
 			if (forceRender) {
@@ -341,7 +341,7 @@ void qtLinkKinectQt(int argc, char *argv[], Kfusion **_kfusion,
 			makeVector(config->initial_pos_factor.x * config->volume_size.x,
 					config->initial_pos_factor.y * config->volume_size.x,
 					config->volume_size.x * config->initial_pos_factor.z,
-#endif					
+#endif
 					0, 0, 0));
 	QApplication a(argc, argv);
 
@@ -386,12 +386,12 @@ void qtLinkKinectQt(int argc, char *argv[], Kfusion **_kfusion,
 			&(config->compute_size_ratio), continueWithNewKfusion);
 	appWindow->addButtonChoices("Vol. Size", { "4.0mx4.0mx4.0m",
 			"2.0mx2.0mx2.0m", "1.0mx1.0mx1.0m" }, { 4.0, 2.0, 1.0 },
-#ifdef SYCL			
+#ifdef SYCL
 			(float *) (&(config->volume_size.x())), continueWithNewKfusion);
 #else
 			(float *) (&(config->volume_size.x)), continueWithNewKfusion);
 #endif
-			
+
 	appWindow->addButtonChoices("Vol. Res", { "1024x1024x1024", "512x512x512",
 			"256x256x256", "128x128x128", "64x64x64", "32x32x32" }, { 1024, 512,
 #ifdef SYCL
@@ -461,7 +461,7 @@ void qtLinkKinectQt(int argc, char *argv[], Kfusion **_kfusion,
 			(const char*) "Performance Statistics", &statsEnabled);
 	appWindow->viewers->setStatEntry("Performance", { "X", "Y", "Z", "tracked",
 			"integrated", "frame" }, false);
-	//this is the default field used for calculating the frame rate    
+	//this is the default field used for calculating the frame rate
 	appWindow->setFrameRateField((char *) "computation");
 
 	if (powerMonitor != NULL && powerMonitor->isActive()) {
@@ -471,13 +471,13 @@ void qtLinkKinectQt(int argc, char *argv[], Kfusion **_kfusion,
 		appWindow->viewers->setStatEntry("Energy", { "Sample_time" }, false);
 	}
 
-	//There are a number of options  to set a range you can use either a slider a dial or a buttonChoice    
+	//There are a number of options  to set a range you can use either a slider a dial or a buttonChoice
 	appWindow->addButtonChoices("Track", 1, 5, &(config->tracking_rate));
 	appWindow->addButtonChoices("Integrate", 1, 5, &(config->integration_rate));
 	appWindow->addButtonChoices("Render", 1, 5, &(config->rendering_rate));
 
 	//If we have built with openMP add a dropdown to set the number of threads
-#ifdef _OPENMP
+#if defined(_OPENMP) && (!defined(TRISYCL))
 	numThreads= omp_get_max_threads();
 	appWindow->addButtonChoices("Threads", 1, numThreads, &numThreads, setThreads);
 #endif
