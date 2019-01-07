@@ -14,6 +14,14 @@
 #include <dagr/dagr/dagr.hpp>
 #include <kernels.h>
 
+#include <stdlib.h>
+
+#define DEBUG_OFF // don't compile debug prints
+
+#ifndef DEBUG_OFF
+#include "../../thirdparty/sycl_debug_helpers.hpp"
+#endif
+
 // input once
 float *gaussian;
 
@@ -788,14 +796,47 @@ bool Kfusion::preprocessing(const uint16_t *inputDepth, /*const*/ uint2 inSize)
 
   const auto r = range<2>{outSize.x(),outSize.y()};
 
+#ifndef DEBUG_OFF
+  printBufferSlice(ocl_FloatDepth, (uint)computationSize.x() * computationSize.y());
+#endif
+
+  // mm2metersKernel correct...
   dagr::run<mm2metersKernel,0>(q, r, *ocl_FloatDepth, outSize,
 	  dagr::ro(buffer<uint16_t,1>(inputDepth, range<1>{((uint)inSize.x()) * ((uint)inSize.y())})),
     inSize, ratio);
 
+#ifndef DEBUG_OFF
+  printBufferSlice(ocl_FloatDepth, (uint)computationSize.x() * computationSize.y());
+  for (unsigned int i = 0; i < iterations.size(); ++i)
+    print2dBufferRow(ocl_ScaledDepth, i);
+  printBufferSlice(ocl_FloatDepth, (uint)computationSize.x() * computationSize.y());
+  printBufferSlice(ocl_gaussian, (uint)radius * 2 + 1);
+  printVal(radius);
+  printVal(e_delta);
+#endif
+
+  // BUG: POSSIBLE TRISYCL BUG FOR OPENMP - cannot pass radius or e_delta
+  // directly into kernel and get correct value, it will populate it with
+  // incorrect data (max int value and 0.00.. defined float) seems to be because
+  // they are neither local nor passed in valeus to the function. They are
+  // member level parameters tied to the kfusion class and both pod. Unsure if
+  // this is a by product of using DAGR as an intermediate or something inherent
+  // to triSYCL. This works for ComputeCpp so it should work in triSYCL.
+  auto rad = radius;
+  auto ed = e_delta;
+
   dagr::run<bilateralFilterKernel,0>(q, r, *ocl_ScaledDepth[0],
                                      dagr::ro(*ocl_FloatDepth),
-                                     dagr::ro(*ocl_gaussian),e_delta,radius);
-	return true;
+                                     dagr::ro(*ocl_gaussian),ed,rad);
+
+#ifndef DEBUG_OFF
+  // correct but off by a little bit because its a floating point, so commented
+  // out as it confuses the diff i perform for now
+  // for (unsigned int i = 0; i < iterations.size(); ++i)
+  //   print2dBufferRow(ocl_ScaledDepth, i);
+#endif
+
+  return true;
 }
 
 bool Kfusion::tracking(float4 k, float icp_threshold,
@@ -814,7 +855,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
     auto in  = dagr::ro(*ocl_ScaledDepth[i-1]);
 		uint2 inSize{((uint)outSize.x())*2,((uint)outSize.y())*2}; // Seems redundant
     dagr::run<halfSampleRobustImageKernel,0>(q,r,out,in,inSize,e_delta*3,1);
-	}
+  }
 
 	// prepare the 3D information from the input depth maps
 	uint2 localimagesize = computationSize;
@@ -854,11 +895,21 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
       const    range<1> nitems{size_of_group * number_of_groups};
       const nd_range<1> ndr{nd_range<1>(nitems, range<1>{size_of_group})};
 
+#ifndef DEBUG_OFF
+      printArraySlice(reduceOutputBuffer, number_of_groups * 32);
+      printBufferSlice(ocl_trackingResult, (uint)computationSize.x() * computationSize.y());
+      std::cout << std::endl;
+#endif
+
       dagr::run<reduceKernel,0>(q,ndr,
         dagr::wo(buffer<float,1>(reduceOutputBuffer,
                                  range<1>{32 * number_of_groups})),
         dagr::ro(*ocl_trackingResult), computationSize, localimagesize,
         dagr::lo<float>(size_of_group * 32));
+
+#ifndef DEBUG_OFF
+        printArraySlice(reduceOutputBuffer, number_of_groups * 32);
+#endif
 
       TooN::Matrix<TooN::Dynamic, TooN::Dynamic, float,
         TooN::Reference::RowMajor> values(reduceOutputBuffer,
@@ -873,7 +924,11 @@ bool Kfusion::tracking(float4 k, float icp_threshold,
     }
   }
 
-	return checkPoseKernel(pose, oldPose, reduceOutputBuffer, computationSize,
+#ifndef DEBUG_OFF
+  printArraySlice(reduceOutputBuffer, number_of_groups * 32);
+#endif
+
+  return checkPoseKernel(pose, oldPose, reduceOutputBuffer, computationSize,
 			track_threshold);
 }
 
@@ -1090,9 +1145,38 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 		const Matrix4 view = (Matrix4)raycastPose * (Matrix4)getInverseCameraMatrix(k);
     range<2> RaycastglobalWorksize{computationSize.x(), computationSize.y()};
 
+#ifndef DEBUG_OFF
+    printVal(raycastPose);
+    printVal(view);
+    printf("%f \n", largestep);
+    printBufferSlice(ocl_vertex, (uint)computationSize.x() * computationSize.y());
+    std::cout << std::endl;
+    printBufferSlice(ocl_normal, (uint)computationSize.x() * computationSize.y());
+    std::cout << std::endl;
+    printBufferSlice(ocl_volume_data, (uint)volumeResolution.x() *
+                       volumeResolution.y() * volumeResolution.z());
+    std::cout << std::endl;
+#endif
+
     dagr::run<raycastKernel,0>(q,RaycastglobalWorksize,
       *ocl_vertex,*ocl_normal,*ocl_volume_data,
       volumeResolution,volumeDimensions,view,nearPlane,farPlane,step,largestep);
+
+#ifndef DEBUG_OFF
+//     ERROR: The output seems to be slightly less accurate for all buffers..is this an issue?
+//     It comes in accurate but leaves slightly off. The normals are off by a bit in the 3rd iteration
+//     by the 4th iteration it affects the vertex's and volume_data.. It seems to mainly affect the
+//     z-axis
+    printBufferSlice(ocl_vertex, (uint)computationSize.x() * computationSize.y());
+    std::cout << std::endl;
+    printBufferSlice(ocl_normal, (uint)computationSize.x() * computationSize.y());
+    std::cout << std::endl;
+//     ERROR: The nomrals accuracy seems to echo into this eventually after a few iterations
+//     it may be from somewhere else though
+    printBufferSlice(ocl_volume_data, (uint)volumeResolution.x() *
+    volumeResolution.y() * volumeResolution.z());
+    std::cout << std::endl;
+  #endif
 	}
 
 	return doRaycast;
@@ -1101,6 +1185,19 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 bool Kfusion::integration(float4 k, const uint integration_rate,
                           const float mu, const uint frame)
 {
+
+#ifndef DEBUG_OFF
+  printVal(pose);
+  std::cout << "\n";
+  printVal(oldPose);
+  std::cout << "\n";
+  // ERROR: There is rounding issues/differences on reduceOutputBuffer between
+  // triSYCL/computecpp unsure if a problem?
+  printArraySlice(reduceOutputBuffer, number_of_groups * 32);
+  std::cout << "\n";
+  std::cout << track_threshold << std::endl;
+#endif
+
 	bool doIntegrate = checkPoseKernel(pose, oldPose, reduceOutputBuffer,
 			computationSize, track_threshold);
 
@@ -1108,8 +1205,21 @@ bool Kfusion::integration(float4 k, const uint integration_rate,
     range<2> globalWorksize{volumeResolution.x(), volumeResolution.y()};
 		const Matrix4 invTrack = inverse(pose);
 		const Matrix4 K = getCameraMatrix(k);
-		const float3 delta = rotate(invTrack,
+
+#ifndef DEBUG_OFF
+    printVal(K);
+    std::cout << std::endl;
+    printVal(invTrack);
+    std::cout << std::endl;
+#endif
+
+    const float3 delta = rotate(invTrack,
 				float3{0, 0, ((float)volumeDimensions.z()) / ((float)volumeResolution.z())});
+
+#ifndef DEBUG_OFF
+    printVal(delta);
+    std::cout << std::endl;
+#endif
 
     // The SYCL lambda for integrateKernel demonstrates pre-DAGR verbosity
     dagr::run<integrateKernel,0>(q, globalWorksize,
@@ -1117,12 +1227,19 @@ bool Kfusion::integration(float4 k, const uint integration_rate,
       dagr::ro(*ocl_FloatDepth),
       computationSize, invTrack, K, mu, maxweight, delta, rotate(K, delta));
 
+#ifndef DEBUG_OFF
+    // ERROR: The Y always seems to be off by 1, x and y appear to be fine.
+    printBufferSlice(ocl_volume_data, (uint)volumeResolution.x() *
+                       volumeResolution.y() * volumeResolution.z());
+    std::cout << std::endl;
+#endif
+
 		doIntegrate = true;
 	} else {
 		doIntegrate = false;
 	}
 
-	return doIntegrate;
+  return doIntegrate;
 }
 
 void Kfusion::dumpVolume(std::string filename) {
@@ -1175,9 +1292,19 @@ void Kfusion::renderTrack(uchar4 *out, uint2 outputSize)
 
 void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
   range<2> globalWorksize{computationSize.x(), computationSize.y()};
+
+#ifndef DEBUG_OFF
+  printBufferSlice(ocl_FloatDepth, (uint)computationSize.x() * computationSize.y());
+#endif
+
+  // ERROR: Temporary Fix for a bug related to triSYCL integration, copy by
+  // value of class member parameters doesn't seem to work for some reason.
+  auto np = nearPlane;
+  auto fp = farPlane;
+
   dagr::run<renderDepthKernel,0>(q,globalWorksize,
     dagr::wo(buffer<uchar4,1>(out,range<1>{((uint)outputSize.x()) * ((uint)outputSize.y())})),
-    dagr::ro(*ocl_FloatDepth), nearPlane, farPlane);
+    dagr::ro(*ocl_FloatDepth), np, fp);
 }
 
 void synchroniseDevices() { q.wait(); }
