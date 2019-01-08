@@ -10,10 +10,8 @@
 */
 #ifdef TRISYCL
 #include <CL/sycl.hpp>
-using int_t = int;
 #else
 #include <SYCL/sycl.hpp>
-using int_t = int;
 #endif
 
 #include <type_traits>

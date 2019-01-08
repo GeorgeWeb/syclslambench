@@ -10,10 +10,8 @@
 
 #ifdef TRISYCL
 #include <CL/sycl.hpp>
-using int_t = int;
 #else
 #include <SYCL/sycl.hpp>
-using int_t = int;
 #endif
 using cl::sycl::accessor; using cl::sycl::buffer;  using cl::sycl::handler;
 using cl::sycl::nd_range; using cl::sycl::range;
