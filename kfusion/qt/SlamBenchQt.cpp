@@ -110,10 +110,10 @@ static void newKfusion(bool resetPose) {
 	else {
 #ifdef SYCL
 		trans = SE3<float>::exp(
-				makeVector(config->initial_pos_factor[0],
-						config->initial_pos_factor[1],
-						config->initial_pos_factor[2], 0, 0, 0)
-						* config->volume_size[0]);
+				makeVector((float)config->initial_pos_factor.x(),
+						(float)config->initial_pos_factor.y(),
+						(float)config->initial_pos_factor.z(), 0, 0, 0)
+						* (float)config->volume_size.x());
 #else
 		trans = SE3<float>::exp(
 				makeVector(config->initial_pos_factor.x,

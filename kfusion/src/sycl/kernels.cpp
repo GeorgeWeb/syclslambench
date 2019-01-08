@@ -317,7 +317,7 @@ static void k(item<2> ix, T *normal, const T *verte_)
   /*const*/ float3 up    = vertex[((uint)vup.x())    + ix.get_range()[0] * ((uint)vup.y())];
   /*const*/ float3 down  = vertex[((uint)vdown.x())  + ix.get_range()[0] * ((uint)vdown.y())];
 
-  if (left[2] == 0 || right[2] == 0 || up[2] == 0 || down[2] == 0) {
+  if ((float)left.z() == 0.0f || (float)right.z() == 0.0f || (float)up.z() == 0.0f || (float)down.z() == 0.0f) {
     const float3 invalid3{KFUSION_INVALID,KFUSION_INVALID,KFUSION_INVALID};
     normal[((uint)pixel.x()) + ix.get_range()[0] * ((uint)pixel.y())] = invalid3;
     return;
@@ -437,7 +437,7 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
   TrackData &row = output[((uint)pixel.x()) + ((uint)outputSize.x()) * ((uint)pixel.y())];
 
   float3 inNormalPixel = inNormal[((uint)pixel.x()) + ix.get_range()[0] * ((uint)pixel.y())];
-  if (inNormalPixel[0] == KFUSION_INVALID) {
+  if ((float)inNormalPixel.x() == KFUSION_INVALID) {
     row.result = -1;
     return;
   }
@@ -456,7 +456,7 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
    /*const*/ uint2 refPixel{projPixel.x(), projPixel.y()};
    /*const*/ float3 referenceNormal =
     refNormal[((uint)refPixel.x()) + ((uint)outputSize.x()) * ((uint)refPixel.y())];
-  if (referenceNormal[0] == KFUSION_INVALID) {
+  if ((float)referenceNormal.x() == KFUSION_INVALID) {
     row.result = -3;
     return;
   }
@@ -493,9 +493,9 @@ static void k(item<2> ix, T *output,      /*const*/ uint2 outputSize,
 
   ((float3 *) row.J)[0] = referenceNormal;
   float3 xprod = cross(projectedVertex, referenceNormal);
-  row.J[3] = xprod[0];
-  row.J[4] = xprod[1];
-  row.J[5] = xprod[2];
+  row.J[3] = xprod.x();
+  row.J[4] = xprod.y();
+  row.J[5] = xprod.z();
 }
 }; // struct
 
@@ -533,7 +533,8 @@ static void k(item<2> ix, T *out, const T *in,
       const int2 minval{0,0};
       const int2 maxval{((uint)inSize.x())-1, ((uint)inSize.y())-1};
             //int2 from{cl::sycl::clamp(x,minval,maxval)};
-            int2 from{cl::sycl::clamp(x[0],minval[0],maxval[0]), cl::sycl::clamp(x[1],minval[1],maxval[1])};
+            int2 from{cl::sycl::clamp((float)x.x(),(float)minval.x(),(float)maxval.x()),
+              cl::sycl::clamp((float)x.y(),(float)minval.y(),(float)maxval.y())};
       float current = in[((int)from.x()) + ((int)from.y()) * ((uint)inSize.x())];
       if (cl::sycl::fabs(current - center) < e_d) {
         sum += 1.0f;
@@ -984,9 +985,9 @@ inline float3 grad(float3 pos, /*const*/ Volume<T> v) {
     cl::sycl::fmin(scaled_pos - cl::sycl::floor(scaled_pos), float3{0x1.fffffep-1f, 0x1.fffffep-1f, 0x1.fffffep-1f});
   //float3 basef = cl::sycl::floor(scaled_pos);
 
-  const int3 vsm1{v.size[0] - 1,
-                  v.size[1] - 1,
-                  v.size[2] - 1};
+  const int3 vsm1{(int)v.size.x() - 1,
+                  (int)v.size.y() - 1,
+                  (int)v.size.z() - 1};
 	/*const*/ int3 lower_lower = max(base - int3{1,1,1}, int3{0,0,0});
 	/*const*/ int3 lower_upper = max(base,               int3{0,0,0});
 	/*const*/ int3 upper_lower = min(base + int3{1,1,1}, vsm1);
