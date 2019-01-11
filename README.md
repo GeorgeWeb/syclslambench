@@ -8,10 +8,10 @@ SLAMBench Release Candidate 1.2 [![Build Status](https://travis-ci.org/pamela-pr
 
 ## What is it for? ##
 
-* A SLAM performance benchmark that combines a framework for quantifying quality-of-result with instrumentation of execution time and energy consumption. 
+* A SLAM performance benchmark that combines a framework for quantifying quality-of-result with instrumentation of execution time and energy consumption.
 * It contains a KinectFusion (http://research.microsoft.com/pubs/155378/ismar2011.pdf) implementation in C++, OpenMP, OpenCL, SYCL and CUDA (inspired by https://github.com/GerhardR).
-* It offers a platform for a broad spectrum of future research in jointly exploring the design space of algorithmic and implementation-level optimisations. 
-* Target desktop, laptop, mobile and embedded platforms. Tested on Ubuntu, OS X and Android (on Android only the benchmark application has been ported, see later). 
+* It offers a platform for a broad spectrum of future research in jointly exploring the design space of algorithmic and implementation-level optimisations.
+* Target desktop, laptop, mobile and embedded platforms. Tested on Ubuntu, OS X and Android (on Android only the benchmark application has been ported, see later).
 
 If you use SLAMBench in scientific publications, we would appreciate citations to the following paper (http://arxiv.org/abs/1410.2167):
 
@@ -29,12 +29,12 @@ Bibtex entry:
     year = {2015},
     month = {May},
     NOTE = {arXiv:1410.2167}
-    } 
+    }
 
 ```
 
 ## How do I get set up on Ubuntu? ##
-If you want to set up for OS X go to the relevant section. 
+If you want to set up for OS X go to the relevant section.
 
 ### Dependencies ###
 
@@ -55,14 +55,14 @@ sudo apt-get install cmake
 
 ```
 +(with Ubuntu, you might need to install the  build-essential package using ```sudo apt-get update && sudo apt-get install build-essential```)
- 
+
 
 #### Optional ####
 
 * OpenMP : for the OpenMP version
 * CUDA : for the CUDA version
 * OpenCL : for the OpenCL version (OpenCL 1.1 or greater)
-* ComputeCpp & [syclcc](https://github.com/agozillon/syclcc) : for the SYCL version (ComputeCpp 0.3.0 or greater) 
+* SYCL : using ComputeCpp (v1.0.0 or greater) or triSYCL (master branch after January 2019)
 
 * OpenGL / GLUT : used by the graphical interface
 * OpenNI : for the live mode, and for `oni2raw` tool (which convert an OpenNI file to the SLAMBench internal format)
@@ -87,7 +87,7 @@ make install
 
 ### Compilation of SLAMBench ###
 
-Then simply build doing: 
+Then simply build doing:
 
 ```
 #!
@@ -102,23 +102,72 @@ CMAKE_PREFIX_PATH=~/.local/qt/ make
 
 #### Compilation of SYCL Module ####
 
-To compile the SYCL benchmarks you require the syclcc scripts from https://github.com/agozillon/syclcc as well as the DAGR DSL at https://github.com/agozillon/dagr. 
+To compile the SYCL benchmarks you require the syclcc scripts from https://github.com/agozillon/syclcc as well as the DAGR DSL at https://github.com/agozillon/dagr.
 
-You will also require the ComputeCpp SYCL compiler. The benchmarks have been tested and compile with ComputeCpp Versions 0.2.1 to 0.5.1 on Ubuntu. The benchmarks work best with versions 0.3.2 and above.
+You will also require either the ComputeCpp SYCL compiler and library which can be downloaded from: https://www.codeplay.com/products/computesuite/computecpp or
+the triSYCL project which can be retrieved from https://github.com/triSYCL/; the triSYCL device compiler is optional dependent on the target you aim to
+compile for. The benchmark has been tested with ComputeCpp Versions 1.0.0 on Ubuntu (there are prior release tags that work with earlier versions) and
+with triSYCL targeting OpenMP. If the newer versions of either triSYCL or ComputeCpp cease to work please open up an issue with some information on
+the problem.
 
-Ubuntu Steps: 
-1) Add the DAGR library to your usr/include folder or set an environment variable called DAGR_INCLUDE_PATH to its location.
-2) Create an environment variable COMPUTECPP that points to your ComputeCpp root directory.
-3) Add the root of the syclcc installation directory to your PATH.
+Ubuntu Steps for ComputeCpp:
+1) Add the DAGR library to your path or set an environment variable called DAGR_INCLUDE_PATH to its location.
+2) Create an environment variable COMPUTECPP_DIR that points to your ComputeCpp root directory.
+3) Add the syclcc/computecpp directory to your PATH.
 (Further information for steps 2 and 3 can be found in the syclcc readme).
-4) Set the CXX environment variable to syclcc and then invoke CMake.
-5) Compile the desired sycl modules using make; for example make kfusion-qt-sycl
+4) Create an environment variable COMPUTECPP_CC_PATH that points to your syclcc/computecpp directory
+5) Add the ComputeCpp installations lib to the LD_LIBRARY_PATH environment variable
+6) Set the CXX environment variable to computecppcc and then invoke CMake.
+7) Compile the desired sycl modules using make; for example make kfusion-qt-sycl
 
-The CMake commands for building the module inside a subdirectory of the SLAMBench root directory:
+Example ComputeCpp setup script for bash:
+```
+#!
+export PATH=/path/syclcc/computecpp:$PATH
+export DAGR_INCLUDE_PATH=/path/dagr/
+export COMPUTECPP_CC_PATH=/path/syclcc/computecpp
+export CXX=computecppcc
+export COMPUTECPP_DIR=/path/ComputeCpp-CE-1.0.0-Ubuntu-16.04-x86_64
+export LD_LIBRARY_PATH=$COMPUTECPP_DIR/lib:$LD_LIBRARY_PATH
+source computecppcc-curr.sh
+```
+
+Example ComputeCpp compilation commands from a subdirectory of the SLAMBench root directory:
 
 ```
 #!
-export CXX=syclcc && cmake ../
+export CXX=computecppcc && cmake ../
+make kfusion-benchmark-sycl
+make kfusion-qt-sycl
+```
+
+Ubuntu Steps for triSYCL:
+1) Add the DAGR library to your path or set an environment variable called DAGR_INCLUDE_PATH to its location.
+2) Create an environment variable TRISYCL_DIR that points to your triSYCL root directory.
+3) Add the syclcc/trisycl directory to your PATH.
+(Further information for steps 2 and 3 can be found in the syclcc readme).
+4) Create an environment variable TRISYCL_CC_PATH that points to your syclcc/trisycl directory
+5) Create an environment variable TRISYCL_TARGET that states the target implementation for triSYCL to use e.g. export TRISYCL_TARGET=OpenMP
+6) Set the CXX environment variable to trisyclcc and then invoke CMake.
+7) Compile the desired sycl modules using make; for example make kfusion-qt-sycl
+
+Example triSYCL setup script for bash:
+
+```
+export PATH=/path/syclcc/trisycl:$PATH
+export DAGR_INCLUDE_PATH=/path/dagr/
+export TRISYCL_CC_PATH=/path/syclcc/trisycl
+export CXX=trisyclcc
+export TRISYCL_DIR=/path/triSYCL
+export TRISYCL_TARGET=OpenMP
+source trisyclcc-curr.sh
+```
+
+Example triSYCL compilation commands from a subdirectory of the SLAMBench root directory:
+
+```
+#!
+export CXX=trisyclcc && cmake ../
 make kfusion-benchmark-sycl
 make kfusion-qt-sycl
 ```
@@ -133,19 +182,19 @@ make kfusion-benchmark-cpp
 
 ### Running SLAMBench ###
 
-The compilation builds 3 application modes which act like wrappers (the kernels are the same for all applications): 
+The compilation builds 3 application modes which act like wrappers (the kernels are the same for all applications):
 
 1. benchmark: terminal user interface mode for benchmarking purposes
 2. main: GLUT GUI visualisation mode
 3. qmain: Qt GUI visualisation mode
 
-Each application mode is also declined in 4 different builds/implementations:
+Each application mode is also declined in 6 different builds and 5 different implementations:
 
-* C++ (*./build/kfusion/kfusion-main-cpp*) 
+* C++ (*./build/kfusion/kfusion-main-cpp*)
 * OpenMP (*./build/kfusion/kfusion-main-openmp*)
-* OpenCL (*./build/kfusion/kfusion-main-cpp*) 
-* CUDA (*./build/kfusion/kfusion-main-cuda*) 
-* SYCL (*./build/kfusion/kfusion-main-sycl*) 
+* OpenCL (*./build/kfusion/kfusion-main-cpp*)
+* CUDA (*./build/kfusion/kfusion-main-cuda*)
+* SYCL (*./build/kfusion/kfusion-main-sycl*)
 
 The Makefile will automatically build the executable with satisfied dependencies, e.g. the OpenCL application version will be built only if the OpenCL tool kit is available on the system and so on for CUDA, OpenMP and Qt.
 
@@ -167,11 +216,11 @@ All application modes and implementations share the same set of arguments:
 -s  (--volume-size)              : default is 2,2,2      
 -t  (--tracking-rate)            : default is 1     
 -v  (--volume-resolution)        : default is 256,256,256    
--y  (--pyramid-levels)           : default is 10,5,4 
+-y  (--pyramid-levels)           : default is 10,5,4
 -z  (--rendering-rate)   : default is 4
 ```
 
-SLAMBench supports several input streams (how to use these inputs is described later): 
+SLAMBench supports several input streams (how to use these inputs is described later):
 
 * ICL-NUIM dataset (http://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html)
 * RGB-D camera like Microsoft Kinect or other PrimeSense cameras using the OpenNI interface
@@ -181,7 +230,7 @@ SLAMBench supports several input streams (how to use these inputs is described l
 
 #### 1. benchmark mode ####
 
-Use this mode for benchmarking proposes. The output is: 
+Use this mode for benchmarking proposes. The output is:
 
 * frame          : ID number of the current frame
 * acquisition    : input data acquisition elapsed time (file reading)
@@ -199,8 +248,8 @@ Use this mode for benchmarking proposes. The output is:
 
 ##### How to use the benchmark mode with the ICL-NUIM dataset #####
 
-SLAMBench provides an interface to the ICL-NUIM dataset. 
-This enables the accuracy evaluation on a SLAM implementation via the ICL-NUIM ground truth. 
+SLAMBench provides an interface to the ICL-NUIM dataset.
+This enables the accuracy evaluation on a SLAM implementation via the ICL-NUIM ground truth.
 ICL-NUIM provides 4 trajectories, we pick trajectory 2 and show how to use the dataset (for the download of each trajectory we recommend 2 GB of space available on the system):
 
 ```
@@ -212,8 +261,8 @@ tar xzf living_room_traj2_loop.tgz
 cd ..
 ```
 
-You can use the ICL-NUIM dataset in its native format or in a RAW format (with the latter acquiring speed increases). 
-RAW is the format to be used for benchmarking purposes, to generate the RAW file: 
+You can use the ICL-NUIM dataset in its native format or in a RAW format (with the latter acquiring speed increases).
+RAW is the format to be used for benchmarking purposes, to generate the RAW file:
 
 ```
 #!plain
@@ -226,9 +275,9 @@ Run SLAMBench:
 #!plain
 ./build/kfusion/kfusion-benchmark-cuda -i living_room_traj2_loop.raw  -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 2 -r 1 -k 481.2,480,320,240  > benchmark.log
 ```
-You can replace *cuda* by *openmp*, *opencl* or *cpp*.
+You can replace *cuda* by *openmp*, *opencl*, *cpp* or *sycl*.
 
-In order to check the accuracy of your tracking compared to the ground truth trajectory, first download the ground truth trajectory file: 
+In order to check the accuracy of your tracking compared to the ground truth trajectory, first download the ground truth trajectory file:
 ```
 #!plain
 wget http://www.doc.ic.ac.uk/~ahanda/VaFRIC/livingRoom2.gt.freiburg
@@ -236,8 +285,8 @@ wget http://www.doc.ic.ac.uk/~ahanda/VaFRIC/livingRoom2.gt.freiburg
 And then use the following tool:
 ```
 #!plain
-./kfusion/thirdparty/checkPos.py benchmark.log livingRoom2.gt.freiburg 
-Get slambench data. 
+./kfusion/thirdparty/checkPos.py benchmark.log livingRoom2.gt.freiburg
+Get slambench data.
 slambench result        : 882 positions.
 NUIM  result        : 880 positions.
 Working position is : 880
@@ -257,10 +306,10 @@ Acceptable values are in the range of few centimeters.
 
 #### 2. main mode ####
 
-This is a GUI mode which internally uses GLUT for the visualisation step. 
+This is a GUI mode which internally uses GLUT for the visualisation step.
 We do not suggest to use this mode for benchmarking purposes because the visualisation step can interfere with the computation elapsed time (see http://arxiv.org/abs/1410.2167 for more information).  
 
-An example of use of the main application is: 
+An example of use of the main application is:
 
 ```
 #!plain
@@ -341,10 +390,10 @@ cp -L lib/OpenNI2-FreenectDriver/libFreenectDriver.so ~/.local/OpenNI2/OpenNI-Li
 
 #### 3. mainQt mode ####
 
-This is a GUI mode which internally uses Qt for the visualisation step. 
+This is a GUI mode which internally uses Qt for the visualisation step.
 We do not suggest to use this mode for benchmarking purposes because the visualisation step can interfere with the computation elapsed time (see http://arxiv.org/abs/1410.2167 for more information).  
 
-An example of use of the mainQt application is: 
+An example of use of the mainQt application is:
 ```
 #!plain
 ./build/kfusion/kfusion-qt-cpp -i ~/Downloads/living_room_traj2_loop/
@@ -366,7 +415,7 @@ KERNEL_TIMINGS=1 ./build/kfusion/kfusion-benchmark-openmp -s 4.8 -p 0.34,0.5,0.2
 
 ### OpenCL ###
 
-It is possible to profile OpenCL kernels using an OpenCL wrapper from the thirdparty folder : 
+It is possible to profile OpenCL kernels using an OpenCL wrapper from the thirdparty folder :
 ```
 #!plain
 LD_PRELOAD=./build/kfusion/thirdparty/liboclwrapper.so ./build/kfusion/kfusion-benchmark-opencl -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 2 -r 1 -k 481.2,480,320,240 -i  living_room_traj2_loop.raw -o benchmark.2.opencl.log 2>  kernels.2.opencl.log
@@ -374,7 +423,7 @@ LD_PRELOAD=./build/kfusion/thirdparty/liboclwrapper.so ./build/kfusion/kfusion-b
 
 ### CUDA ###
 
-The CUDA profiling takes advantage of the NVIDIA nvprof profiling tool. 
+The CUDA profiling takes advantage of the NVIDIA nvprof profiling tool.
 ```
 #!plain
 nvprof --print-gpu-trace ./build/kfusion/kfusion-benchmark-cuda -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 2 -r 1 -k 481.2,480,320,240 -i  living_room_traj2_loop.raw -o  benchmark.2.cuda.log 2> tmpkernels.2.cuda.log || true
@@ -389,15 +438,15 @@ KERNEL_TIMINGS=1 ./build/kfusion/kfusion-benchmark-sycl -s 4.8 -p 0.34,0.5,0.24 
 
 ## Automatic timings ##
 
-When using the ICL-NUIM dataset, it is possible to generate the timings using only one command. 
-If the living room trajectory files (raw + trajectory ground truth) are not in the directory they will be automatically downloaded. 
- 
-In the following command, we use trajectory 2 and we generate the timings for the OpenCL version only: 
+When using the ICL-NUIM dataset, it is possible to generate the timings using only one command.
+If the living room trajectory files (raw + trajectory ground truth) are not in the directory they will be automatically downloaded.
+
+In the following command, we use trajectory 2 and we generate the timings for the OpenCL version only:
 ```
 make 2.opencl.log
 ```
 
-In order to use all the available languages and for all the available trajectories do the following: 
+In order to use all the available languages and for all the available trajectories do the following:
 ```
 make 0.cpp.log 0.opencl.log 0.openmp.log 0.cuda.log
 make 1.cpp.log 1.opencl.log 1.openmp.log 1.cuda.log
@@ -408,7 +457,7 @@ make 3.cpp.log 3.opencl.log 3.openmp.log 3.cuda.log
 
 ## Parameters for different dataset trajectories (Living Room) ##
 
-These parameters are also present in the Makefile and can be used with the command above, see Automatic timings section. 
+These parameters are also present in the Makefile and can be used with the command above, see Automatic timings section.
 
 Trajectory 0 : offset = 0.34,0.5,0.24,  voxel grid size = 5.0m (max ATE = 0.1m,    mean ATE = 0.01m)
 
@@ -427,18 +476,18 @@ Trajectory 3 : offset = 0.2685,0.5,0.4, voxel grid size = 5.0m (max ATE = 0.292m
 
 SlamBench
    ├── (build)      :  will content the compilation and test result.
-   ├── cmake        :  cmake module file 
+   ├── cmake        :  cmake module file
    └── kfusion      :  kfusion test case.
-       ├── include  : common files (including the tested kernel prototypes) 
-       │   └── sycl : sycl specific common files 
+       ├── include  : common files (including the tested kernel prototypes)
+       │   └── sycl : sycl specific common files
        ├── src
        │   ├── cpp      : C++/OpenMP implementation
        │   ├── opencl   : OpenCL implementation
        │   ├── cuda    : CUDA implementation
-	   │   ├── sycl    : SYCL implementation 
+	     │   ├── sycl    : SYCL implementation
        └── thridparty    : Includes several tools use by Makefile and 3rd party headers.
 ```
- 
+
 
 ###Power measurement ###
 Currently  power measurement is only implemented on Hardkernel boards implementing power monitoring using on board sensors, ODROID-XUE and ODROID-XU3.  When executing on these platforms a file power.rpt is produced at the end of each run, this will contain a frame by frame analysis of mean power and time for each frame.  The power is separated between, the Cortex-A7, Cortex-A15, GPU and DRAM.
@@ -451,7 +500,7 @@ In the future we propose to add support for power estimation using on chip count
 
 ## Set up on OS X ##
 
-**Warning**: SLAMBench is widely tested and fully supported on Ubuntu. The OS X version may result instable. We reckon to use the Ubuntu version. 
+**Warning**: SLAMBench is widely tested and fully supported on Ubuntu. The OS X version may result instable. We reckon to use the Ubuntu version.
 
 Install Homebrew:
 
@@ -477,7 +526,7 @@ sudo ln -s /usr/local/bin/g++-4.8 /usr/bin/c++
 
 ```
 
-OpenCL is already installed out-of-the-box no need to install. 
+OpenCL is already installed out-of-the-box no need to install.
 Install CUDA ( guide here: http://docs.nvidia.com/cuda/cuda-getting-started-guide-for-mac-os-x/#axzz3L7QjZMEC)
 
 Install Qt:
@@ -535,11 +584,11 @@ export DYLD_LIBRARY_PATH=/Users/lnardi/sw/OpenNI-MacOSX-x64-2.2/Samples/Bin:$DYL
 ##Known Issues ##
 * ** Failure to track using OpenCL on AMD **  -Some issues have been reported on AMD platforms, we will look into this
 * **Visualisation using QT**  - may be offset on some platforms - notably ARM
-* **Build issues using QT on ARM ** - Visualisation requires opengl but Qt on ARM is often built using GLES, including packages obtained from distribution repo.  Building from source with opengl set to desktop resolves this. 
+* **Build issues using QT on ARM ** - Visualisation requires opengl but Qt on ARM is often built using GLES, including packages obtained from distribution repo.  Building from source with opengl set to desktop resolves this.
 * ** Frame rates on QT GUI appear optimistic** -  The rate shown in the status bar is by default the computation time to process the frame and render any output, it excludes the time take by the QT interface to display the rendered images and acquire frame
 * ** performance difference between CUDA/OpenCL** - This is a known issue that we are investigating. It's mainly cause by a difference of global work-group size between the both version and a major slowdown of CUDA in the rendering kernels is cause by the use of float3 instead of float4 which result by an alignment issue. this alignment issue doesn't appear in OpenCL as cl_float3 are the same as cl_float4.
-* ** CUDA nvprof slows down the performance on some platforms** - the nvprof instrumentation has a 2x slowdown on MAC OS for the high-level KFusion building blocks. So if we run using make 2.cuda.log we will not measure the maximum speed of the machine for the high-level building blocks. It is questionable then if we should keep measuring the CUDA high-level and low-level performance at the same time or in order to be more accurate it is better to run the two measurements in two separate runs. 
-* ** OS X version has not been widely tested ** 
+* ** CUDA nvprof slows down the performance on some platforms** - the nvprof instrumentation has a 2x slowdown on MAC OS for the high-level KFusion building blocks. So if we run using make 2.cuda.log we will not measure the maximum speed of the machine for the high-level building blocks. It is questionable then if we should keep measuring the CUDA high-level and low-level performance at the same time or in order to be more accurate it is better to run the two measurements in two separate runs.
+* ** OS X version has not been widely tested **
 
 ## Release history ##
 
@@ -556,7 +605,7 @@ Release candidate 1.1 (17 Mar 2015)
 * Performance : Change float3 to float4 for the rendering kernels (No effect on OpenCL, but high performance improvement with CUDA)
 * Performance : Add a dedicated buffer for the OpenCL rendering
 * Feature : Add OSX support
- 
+
 Release candidate 1.0 (12 Nov 2014)
 
 * First public release

@@ -9,7 +9,7 @@
 #else
 #include <SYCL/sycl.hpp>
 #endif
-#include <dagr/dagr/dagr.hpp>
+#include <dagr/dagr.hpp>
 #include <kernels.h>
 
 #include <stdlib.h>

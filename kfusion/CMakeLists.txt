@@ -5,13 +5,11 @@ set(appname kfusion)
 find_package(TooN   REQUIRED)
 find_package(OpenCL )
 find_package(SYCL   )
-find_package(TriSYCLCC)
 find_package(CUDA   )
 find_package(GLUT   )
 find_package(OpenGL )
 find_package(OpenNI2)
 find_package(PAPI)
-
 find_package(PkgConfig)
 find_package(Qt5Core)
 find_package(Qt5Widgets)
@@ -38,23 +36,17 @@ set(common_compile_flags "")
 
  # ----------------- SYCL VERSION -----------------
 
-if    (SYCL_FOUND)    # For this, CXX must also be set to syclcc
+if    (SYCL_FOUND)    # For this, CXX must also be set to syclcc or trisyclcc
   add_library(${appname}-sycl  src/sycl/kernels.cpp)
   target_link_libraries(${appname}-sycl   ${common_libraries})
   add_definitions( -DSYCL )
+  # Maybe possible to check for a definition found inside triSYCL rather than
+  # adding a new one conditionally.
+  if    (TRISYCL_FOUND)
+    add_definitions( -DTRISYCL )
+  endif (TRISYCL_FOUND)
   add_version(${appname} sycl "" "") # Paths
 endif (SYCL_FOUND)
-
-# ----------------- TRISYCL VERSION -----------------
-
-if    (TRISYCL_FOUND)    # For this, CXX must also be set to trisyclcc
- add_library(${appname}-trisycl  src/sycl/kernels.cpp)
- target_link_libraries(${appname}-trisycl  ${common_libraries})
- # is this better than including defines inside SlamBenchQt.cpp? Do we always use openmp?
- # SET_TARGET_PROPERTIES(${appname}-trisycl PROPERTIES COMPILE_FLAGS "-fopenmp")
- add_definitions( -DTRISYCL -DSYCL)
- add_version(${appname} trisycl "" "") # Paths
-endif (TRISYCL_FOUND)
 
  # ----------------- CPP VERSION -----------------
 
