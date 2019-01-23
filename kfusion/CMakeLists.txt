@@ -39,11 +39,9 @@ set(common_compile_flags "")
 if    (SYCL_FOUND)    # For this, CXX must also be set to syclcc or trisyclcc
   add_library(${appname}-sycl  src/sycl/kernels.cpp)
   target_link_libraries(${appname}-sycl   ${common_libraries})
-  add_definitions( -DSYCL )
-  # Maybe possible to check for a definition found inside triSYCL rather than
-  # adding a new one conditionally.
+  target_compile_definitions(${appname}-sycl PUBLIC -DSYCL )
   if    (TRISYCL_FOUND)
-    add_definitions( -DTRISYCL )
+    target_compile_definitions(${appname}-sycl PUBLIC -DTRISYCL )
   endif (TRISYCL_FOUND)
   add_version(${appname} sycl "" "") # Paths
 endif (SYCL_FOUND)
