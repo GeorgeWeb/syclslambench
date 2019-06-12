@@ -205,7 +205,7 @@ int main(int argc, char ** argv) {
 	free(depthRender);
 	free(trackRender);
 	free(volumeRender);
-
+  delete kfusion;
 }
 
 int processAll(DepthReader *reader, bool processFrame, bool renderImages,
